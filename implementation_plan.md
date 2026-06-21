@@ -17,6 +17,7 @@ Atlevia is a cross-platform (iOS and Android) mobile application designed to com
 > 3. **Device Integrations:** Do we need to integrate with native health stores (Apple HealthKit / Google Health Connect) to auto-sync steps, heart rate, and workouts, or will all entries be manual initially?
 > 4. **Blood Reports File Storage:** For blood reports, do you want users to just type in values (e.g., Vitamin D: 30 ng/mL) or upload PDF/image reports as files? If uploading, we will need cloud storage configured.
 > 5. **Authentication:** Should we support standard Email/Password login, or do we want Social Logins (Google, Apple, etc.) from day one?
+> 6. **Food & Barcode Database:** Do you prefer using a free, open-source database like **Open Food Facts** (which supports barcode scanning lookup and provides Nutri-Score grades), or a commercial provider (e.g., FatSecret or Nutritionix)?
 
 ---
 
@@ -39,7 +40,7 @@ graph TD
 
 #### **B. Health Tracking Section**
 - **Vital Metrics:** Daily/weekly logs for weight and height (with automatic BMI calculation).
-- **Nutrition & Hydration:** Food intake tracking (calories, macros) and daily water/vitamin intake logs.
+- **Nutrition & Hydration:** Food intake tracking (calories, macros), daily water/vitamin intake logs, and **food scanning (barcode/camera OCR)** linked to a **nutrition scoring/grading system** (e.g., Nutri-Score/NOVA classification).
 - **Medical Records:** Blood report logging (storing key biomarker values like cholesterol, vitamins, thyroid, etc.) with PDF/Image attachments.
 
 ---

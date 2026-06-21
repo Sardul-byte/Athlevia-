@@ -18,7 +18,7 @@ Track all your workouts in one place with tailored input formats:
 ### 2. 🩺 Health Hub
 Track your baseline health metrics and medical records over time:
 - **Vitals Logger:** Track height, weight, blood pressure, and heart rate.
-- **Nutrition & Hydration:** Track food intake (calories and macronutrients) and daily water consumption.
+- **Nutrition & Hydration:** Track food intake (calories and macronutrients) and daily water consumption, supported by a barcode/camera scanner to grade food items with a nutrition scoring system.
 - **Supplements:** Track daily vitamin intake with custom scheduled reminders.
 - **Blood Reports Manager:** Upload laboratory blood test reports, extract biomarker values (e.g., Vitamin D, Cholesterol), and view visual trend lines showing biological changes over time.
 
@@ -71,6 +71,8 @@ Athlevia is being built iteratively, step-by-step:
 ### 📅 Phase 5: Health & Nutrition Features
 - [ ] Add hydration widget (quick-add buttons).
 - [ ] Integrate nutrition intake input logger.
+- [ ] Implement camera/barcode scanner integration for food items.
+- [ ] Build nutrition scoring system & grade calculation for food items.
 - [ ] Develop vitamin checklists and daily reset automation.
 
 ### 📅 Phase 6: Vitals, Reports & Analytics
