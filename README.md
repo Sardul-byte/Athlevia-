@@ -24,6 +24,12 @@ Track your baseline health metrics and medical records over time:
 - **Supplements:** Track daily vitamin intake with custom scheduled reminders.
 - **Blood Reports Manager:** Upload laboratory blood test reports, extract biomarker values (e.g., Vitamin D, Cholesterol), and view visual trend lines showing biological changes over time.
 
+### 3. 🏆 Perks & Rewards System
+Gamify your wellness journey by earning redeemable perks:
+- **Goals & Challenges:** Participate in daily/weekly fitness and hydration challenges (e.g., 10,000 steps streak, 8 glasses of water daily).
+- **Points & Badges:** Earn custom activity points and unlock achievements for completing logging streaks and workouts.
+- **Perk Redemption:** Redeem accrued points directly within the app for specific perks, features, or rewards.
+
 ---
 
 ## 🏗️ Architecture Design
@@ -83,6 +89,11 @@ Athlevia is being built iteratively, step-by-step:
 - [ ] Implement weight/height progress trackers with BMI charts.
 - [ ] Build blood report file uploader.
 - [ ] Implement interactive line charts showing biomarker level trends over time.
+
+### 📅 Phase 7: Perks, Challenges & Rewards
+- [ ] Design point-accumulation system database logic.
+- [ ] Create gamification modules (achievement badges, daily streaks).
+- [ ] Implement challenge dashboard and user reward redemption flows.
 
 ---
 
