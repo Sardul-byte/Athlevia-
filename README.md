@@ -20,6 +20,7 @@ Track all your workouts in one place with tailored input formats:
 Track your baseline health metrics and medical records over time:
 - **Vitals Logger:** Track height, weight, blood pressure, and heart rate.
 - **Nutrition & Hydration:** Track food intake (calories and macronutrients) and daily water consumption, supported by a barcode/camera scanner to grade food items with a nutrition scoring system.
+- **AI Diet Suggestions:** Receive customized diet recommendations dynamically adjusted based on your logged workouts and activities for the day.
 - **Supplements:** Track daily vitamin intake with custom scheduled reminders.
 - **Blood Reports Manager:** Upload laboratory blood test reports, extract biomarker values (e.g., Vitamin D, Cholesterol), and view visual trend lines showing biological changes over time.
 
@@ -75,6 +76,7 @@ Athlevia is being built iteratively, step-by-step:
 - [ ] Integrate nutrition intake input logger.
 - [ ] Implement camera/barcode scanner integration for food items.
 - [ ] Build nutrition scoring system & grade calculation for food items.
+- [ ] Build AI Diet Suggestion Engine matching meals to active workouts.
 - [ ] Develop vitamin checklists and daily reset automation.
 
 ### 📅 Phase 6: Vitals, Reports & Analytics
