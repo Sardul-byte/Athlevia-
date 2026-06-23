@@ -33,6 +33,16 @@ Gamify your wellness journey by earning redeemable perks:
 
 ---
 
+## 🎨 Design Principles
+
+Athlevia is built with a focus on:
+- **Clean & Intuitive UI:** Streamlined user flows that minimize friction during workout logging and health check-ins.
+- **Data Privacy & Security:** Secure, private handling of user biological health records and vital metrics.
+- **Gamified Engagement:** Motivational daily streaks, custom achievements, and redeemable rewards to keep users on track.
+- **Cross-Platform Fluidity:** A native-feeling, consistent UX/UI experience across both iOS and Android platforms.
+
+---
+
 ## 🏗️ Architecture Design
 
 ```mermaid
