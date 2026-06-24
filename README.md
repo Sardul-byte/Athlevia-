@@ -28,7 +28,7 @@ Track your baseline health metrics and medical records over time:
 ### 3. 🏆 Perks & Rewards System
 Gamify your wellness journey by earning redeemable perks:
 - **Goals & Challenges:** Participate in daily/weekly fitness and hydration challenges (e.g., 10,000 steps streak, 8 glasses of water daily).
-- **Points & Badges:** Earn custom activity points and unlock achievements for completing logging streaks and workouts.
+- **Points & Badges:** Earn custom activity points and unlock achievements for completing logging streaks and workouts. Users can also post their achievements online to share progress.
 - **Perk Redemption:** Redeem accrued points directly within the app for specific perks, features, or rewards.
 
 ---
@@ -104,7 +104,7 @@ Athlevia is being built iteratively, step-by-step:
 
 ### 📅 Phase 7: Perks, Challenges & Rewards
 - [ ] Design point-accumulation system database logic.
-- [ ] Create gamification modules (achievement badges, daily streaks).
+- [ ] Create gamification modules (achievement badges, daily streaks) with the ability to post achievements online.
 - [ ] Implement challenge dashboard and user reward redemption flows.
 
 ---
