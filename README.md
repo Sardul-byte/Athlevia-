@@ -76,7 +76,8 @@ Athlevia is being built iteratively, step-by-step:
 - [ ] Build static dashboard and settings views.
 
 ### 📅 Phase 3: Backend & Database Setup
-- [ ] Initialize backend framework (FastAPI or Supabase configurations).
+- [x] Initialize backend framework ([main.py](file:///C:/Users/Sardul/Desktop/Projects/Atlevia%20%28Own%29/main.py) boilerplate).
+- [x] Create relational database schema design ([schema.sql](file:///C:/Users/Sardul/Desktop/Projects/Atlevia%20%28Own%29/schema.sql)).
 - [ ] Connect database and run migration scripts.
 - [ ] Implement user authentication (JWT tokens, sign up/in flow).
 - [ ] Set up secure cloud storage bucket for blood reports.
