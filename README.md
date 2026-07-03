@@ -78,8 +78,10 @@ Athlevia is being built iteratively, step-by-step:
 ### 📅 Phase 3: Backend & Database Setup
 - [x] Initialize backend framework ([main.py](file:///C:/Users/Sardul/Desktop/Projects/Atlevia%20%28Own%29/main.py) boilerplate).
 - [x] Create relational database schema design ([schema.sql](file:///C:/Users/Sardul/Desktop/Projects/Atlevia%20%28Own%29/schema.sql)).
-- [ ] Connect database and run migration scripts.
-- [ ] Implement user authentication (JWT tokens, sign up/in flow).
+- [x] Connect database via SQLAlchemy ([database.py](file:///C:/Users/Sardul/Desktop/Projects/Atlevia%20%28Own%29/database.py), [models.py](file:///C:/Users/Sardul/Desktop/Projects/Atlevia%20%28Own%29/models.py)).
+- [x] Implement user authentication (JWT tokens, sign up/in flow — [security.py](file:///C:/Users/Sardul/Desktop/Projects/Atlevia%20%28Own%29/security.py)).
+- [x] Persist workouts, vitals, and nutrition logs through authenticated endpoints.
+- [ ] Add Alembic migration scripts.
 - [ ] Set up secure cloud storage bucket for blood reports.
 
 ### 📅 Phase 4: Fitness Logging Features
@@ -110,10 +112,32 @@ Athlevia is being built iteratively, step-by-step:
 
 ---
 
-## 🛠️ Tech Stack Spec (Under Selection)
+## 🛠️ Tech Stack
 
-- **Frontend:** React Native (Expo) or Flutter
-- **Backend:** FastAPI (Python) or Supabase (Serverless PostgreSQL)
+- **Frontend:** React Native (Expo) — see [mobile/](mobile/)
+- **Backend:** FastAPI (Python) with SQLAlchemy
 - **Database:** PostgreSQL
+- **Auth:** JWT bearer tokens with bcrypt password hashing
 - **Charts:** Native SVG chart libraries
-- **Storage:** Amazon S3 / Supabase Storage
+- **Storage:** Amazon S3 / Supabase Storage (pending)
+
+---
+
+## 🚀 Running the Backend Locally
+
+```bash
+# 1. Install dependencies
+pip install -r requirements.txt
+
+# 2. Configure environment (copy and edit)
+cp .env.example .env
+
+# 3. Create the database and apply the schema
+psql -U postgres -c "CREATE DATABASE athlevia;"
+psql -U postgres -d athlevia -f schema.sql
+
+# 4. Start the API server
+uvicorn main:app --reload
+```
+
+Interactive API docs are available at `http://localhost:8000/docs` once the server is running.

@@ -4,6 +4,9 @@
 - [ ] Select Backend/Database Architecture
 - [x] Set up project repository and boilerplate code
 - [x] Define initial database schema
-- [ ] Connect FastAPI application to PostgreSQL database
-- [ ] Implement JWT-based token authentication
+- [x] Connect FastAPI application to PostgreSQL database
+- [x] Implement JWT-based token authentication
+- [ ] Add Alembic migrations for schema versioning
+- [ ] Connect the Expo mobile client to the backend API
+- [ ] Set up secure cloud storage bucket for blood reports
 
