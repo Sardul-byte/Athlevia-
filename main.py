@@ -1,7 +1,12 @@
 from fastapi import FastAPI, HTTPException, Depends, status
 from pydantic import BaseModel, EmailStr
+from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
+
+from database import get_db
+from models import User
+from security import create_access_token, get_current_user, hash_password, verify_password
 
 app = FastAPI(
     title="Athlevia API",
@@ -33,20 +38,38 @@ class WorkoutResponse(WorkoutCreate):
     user_id: str
     logged_at: datetime
 
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
 # Auth Endpoints
 @app.post("/auth/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def signup(user: UserCreate):
-    # TODO: Implement database user registration & password hashing
-    return {
-        "id": "mock-user-id",
-        "email": user.email,
-        "created_at": datetime.utcnow()
-    }
+def signup(user: UserCreate, db: Session = Depends(get_db)):
+    if db.query(User).filter(User.email == user.email).first():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An account with this email already exists",
+        )
+    new_user = User(email=user.email, password_hash=hash_password(user.password))
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return new_user
 
-@app.post("/auth/login")
-def login(user: UserCreate):
-    # TODO: Validate user and return JWT access token
-    return {"access_token": "mock-jwt-token", "token_type": "bearer"}
+@app.post("/auth/login", response_model=TokenResponse)
+def login(credentials: UserCreate, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == credentials.email).first()
+    if user is None or not verify_password(credentials.password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return TokenResponse(access_token=create_access_token(user.id))
+
+@app.get("/auth/me", response_model=UserResponse)
+def read_current_user(current_user: User = Depends(get_current_user)):
+    return current_user
 
 # Workout Endpoints
 @app.post("/workouts", response_model=WorkoutResponse, status_code=status.HTTP_201_CREATED)
