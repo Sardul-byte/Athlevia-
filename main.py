@@ -1,4 +1,7 @@
+import os
+
 from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -13,6 +16,15 @@ app = FastAPI(
     title="Athlevia API",
     description="Backend API for the Athlevia fitness & health tracking mobile application",
     version="0.1.0"
+)
+
+# Allow the Expo dev client (web) to call the API from another origin.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=os.getenv("CORS_ORIGINS", "http://localhost:8081").split(","),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Models
@@ -133,7 +145,7 @@ def get_workouts(
 
 @app.delete("/workouts/{workout_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_workout(
-    workout_id: str,
+    workout_id: UUID,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):

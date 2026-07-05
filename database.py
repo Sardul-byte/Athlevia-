@@ -10,7 +10,10 @@ DATABASE_URL = os.getenv(
     "postgresql://postgres:postgres@localhost:5432/athlevia",
 )
 
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+# SQLite (used for local demos/tests) needs check_same_thread disabled
+# because FastAPI may service a request from a different thread.
+connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+engine = create_engine(DATABASE_URL, pool_pre_ping=True, connect_args=connect_args)
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 
 
