@@ -6,7 +6,7 @@ import { useFocusEffect } from 'expo-router';
 import { LabeledInput, PrimaryButton } from '@/components/form';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { BottomTabInset, MaxContentWidth, Spacing, TopTabInset } from '@/constants/theme';
 import { api, type NutritionLog, type VitalLog } from '@/lib/api';
 
 const WATER_PRESETS = [250, 500, 750] as const;
@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.four,
+    paddingTop: TopTabInset + Spacing.four,
     paddingBottom: BottomTabInset + Spacing.four,
     gap: Spacing.three,
   },
