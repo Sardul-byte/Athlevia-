@@ -7,6 +7,7 @@ import { LabeledInput, PrimaryButton } from '@/components/form';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing, TopTabInset } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import { api, type NutritionLog, type Workout, type UserProfile } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 
@@ -36,6 +37,7 @@ function StatCard({ label, value, unit }: { label: string; value: number; unit: 
 
 export default function HomeScreen() {
   const { user, signOut } = useAuth();
+  const theme = useTheme();
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [nutrition, setNutrition] = useState<NutritionLog[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -167,6 +169,54 @@ export default function HomeScreen() {
             <StatCard label="Meals" value={todayNutrition.length} unit="logged" />
           </ThemedView>
 
+          {profile && (
+            <ThemedView type="backgroundElement" style={styles.goalsProgressCard}>
+              <ThemedText type="smallBold" themeColor="textSecondary">
+                TODAY'S GOAL PROGRESS
+              </ThemedText>
+
+              <ThemedView style={styles.goalRow}>
+                <ThemedView style={styles.goalInfo}>
+                  <ThemedText type="smallBold">Calories</ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {caloriesEaten} / {profile.daily_calorie_goal} kcal ({profile.daily_calorie_goal > 0 ? Math.round((caloriesEaten / profile.daily_calorie_goal) * 100) : 0}%)
+                  </ThemedText>
+                </ThemedView>
+                <ThemedView style={[styles.progressBarBg, { backgroundColor: theme.backgroundSelected }]}>
+                  <ThemedView
+                    style={[
+                      styles.progressBarFill,
+                      {
+                        width: `${profile.daily_calorie_goal > 0 ? Math.min(100, (caloriesEaten / profile.daily_calorie_goal) * 100) : 0}%`,
+                        backgroundColor: theme.tint
+                      }
+                    ]}
+                  />
+                </ThemedView>
+              </ThemedView>
+
+              <ThemedView style={styles.goalRow}>
+                <ThemedView style={styles.goalInfo}>
+                  <ThemedText type="smallBold">Water Intake</ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {waterMl} / {profile.daily_water_goal_ml} ml ({profile.daily_water_goal_ml > 0 ? Math.round((waterMl / profile.daily_water_goal_ml) * 100) : 0}%)
+                  </ThemedText>
+                </ThemedView>
+                <ThemedView style={[styles.progressBarBg, { backgroundColor: theme.backgroundSelected }]}>
+                  <ThemedView
+                    style={[
+                      styles.progressBarFill,
+                      {
+                        width: `${profile.daily_water_goal_ml > 0 ? Math.min(100, (waterMl / profile.daily_water_goal_ml) * 100) : 0}%`,
+                        backgroundColor: '#3B82F6'
+                      }
+                    ]}
+                  />
+                </ThemedView>
+              </ThemedView>
+            </ThemedView>
+          )}
+
           <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionTitle}>
             RECENT WORKOUTS
           </ThemedText>
@@ -269,5 +319,29 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     gap: Spacing.half,
     flexShrink: 1,
+  },
+  goalsProgressCard: {
+    borderRadius: Spacing.three,
+    padding: Spacing.three,
+    gap: Spacing.three,
+  },
+  goalRow: {
+    gap: Spacing.one,
+    backgroundColor: 'transparent',
+  },
+  goalInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+  },
+  progressBarBg: {
+    height: 8,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 4,
   },
 });

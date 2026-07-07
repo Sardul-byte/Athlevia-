@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Alert, FlatList, Platform, Pressable, StyleSheet } from 'react-native';
+import { Alert, FlatList, Platform, Pressable, RefreshControl, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 
@@ -21,6 +21,7 @@ export default function WorkoutsScreen() {
   const [calories, setCalories] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -35,6 +36,12 @@ export default function WorkoutsScreen() {
       load();
     }, [load]),
   );
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  }, [load]);
 
   const submit = async () => {
     const minutes = parseInt(duration, 10);
@@ -148,6 +155,7 @@ export default function WorkoutsScreen() {
           keyExtractor={(w) => w.id}
           ListHeaderComponent={form}
           contentContainerStyle={styles.listContent}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           ListEmptyComponent={
             <ThemedView type="backgroundElement" style={styles.emptyCard}>
               <ThemedText themeColor="textSecondary">No workouts logged yet.</ThemedText>
