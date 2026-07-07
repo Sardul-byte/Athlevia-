@@ -9,7 +9,7 @@ from datetime import datetime
 from uuid import UUID
 
 from database import get_db
-from models import NutritionLog, User, VitalLog, Workout
+from models import NutritionLog, User, VitalLog, Workout, UserProfile
 from security import create_access_token, get_current_user, hash_password, verify_password
 
 app = FastAPI(
@@ -58,6 +58,21 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
 
+class UserProfileUpdate(BaseModel):
+    daily_calorie_goal: Optional[int] = None
+    daily_water_goal_ml: Optional[int] = None
+
+class UserProfileResponse(BaseModel):
+    id: UUID
+    user_id: UUID
+    daily_calorie_goal: int
+    daily_water_goal_ml: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
 # Auth Endpoints
 @app.post("/auth/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def signup(user: UserCreate, db: Session = Depends(get_db)):
@@ -86,6 +101,39 @@ def login(credentials: UserCreate, db: Session = Depends(get_db)):
 @app.get("/auth/me", response_model=UserResponse)
 def read_current_user(current_user: User = Depends(get_current_user)):
     return current_user
+
+# User Profile Endpoints
+@app.get("/profiles/me", response_model=UserProfileResponse)
+def get_user_profile(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    profile = db.query(UserProfile).filter(UserProfile.user_id == current_user.id).first()
+    if not profile:
+        profile = UserProfile(user_id=current_user.id, daily_calorie_goal=2000, daily_water_goal_ml=2000)
+        db.add(profile)
+        db.commit()
+        db.refresh(profile)
+    return profile
+
+@app.put("/profiles/me", response_model=UserProfileResponse)
+def update_user_profile(
+    profile_update: UserProfileUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    profile = db.query(UserProfile).filter(UserProfile.user_id == current_user.id).first()
+    if not profile:
+        profile = UserProfile(user_id=current_user.id, daily_calorie_goal=2000, daily_water_goal_ml=2000)
+        db.add(profile)
+
+    update_data = profile_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(profile, key, value)
+
+    db.commit()
+    db.refresh(profile)
+    return profile
 
 class VitalLogCreate(BaseModel):
     weight_kg: Optional[float] = None
