@@ -79,6 +79,16 @@ export type NutritionLog = {
   logged_at: string;
 };
 
+export type UserProfile = {
+  id: string;
+  user_id: string;
+  daily_calorie_goal: number;
+  daily_water_goal_ml: number;
+  created_at: string;
+  updated_at: string;
+};
+
+
 // --- Endpoints ---
 
 export const api = {
@@ -115,4 +125,7 @@ export const api = {
     fat_g?: number;
     water_ml?: number;
   }) => request<NutritionLog>('/nutrition', { method: 'POST', body: JSON.stringify(entry) }),
+  getProfile: () => request<UserProfile>('/profiles/me'),
+  updateProfile: (profile: Partial<Pick<UserProfile, 'daily_calorie_goal' | 'daily_water_goal_ml'>>) =>
+    request<UserProfile>('/profiles/me', { method: 'PUT', body: JSON.stringify(profile) }),
 };
