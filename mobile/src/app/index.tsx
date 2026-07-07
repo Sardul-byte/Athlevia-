@@ -3,10 +3,11 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 
+import { LabeledInput, PrimaryButton } from '@/components/form';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing, TopTabInset } from '@/constants/theme';
-import { api, type NutritionLog, type Workout } from '@/lib/api';
+import { api, type NutritionLog, type Workout, type UserProfile } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 
 function isToday(iso: string) {
@@ -39,11 +40,25 @@ export default function HomeScreen() {
   const [nutrition, setNutrition] = useState<NutritionLog[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Profile states
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [isEditingGoals, setIsEditingGoals] = useState(false);
+  const [calorieGoalInput, setCalorieGoalInput] = useState('');
+  const [waterGoalInput, setWaterGoalInput] = useState('');
+  const [savingGoals, setSavingGoals] = useState(false);
+
   const load = useCallback(async () => {
     try {
-      const [w, n] = await Promise.all([api.getWorkouts(), api.getNutrition()]);
+      const [w, n, p] = await Promise.all([
+        api.getWorkouts(),
+        api.getNutrition(),
+        api.getProfile(),
+      ]);
       setWorkouts(w);
       setNutrition(n);
+      setProfile(p);
+      setCalorieGoalInput(p.daily_calorie_goal.toString());
+      setWaterGoalInput(p.daily_water_goal_ml.toString());
     } catch {
       // Backend unreachable; keep whatever we had.
     }
@@ -60,6 +75,27 @@ export default function HomeScreen() {
     await load();
     setRefreshing(false);
   }, [load]);
+
+  const saveGoals = async () => {
+    const cal = parseInt(calorieGoalInput, 10);
+    const wat = parseInt(waterGoalInput, 10);
+    if (!Number.isFinite(cal) || cal <= 0 || !Number.isFinite(wat) || wat <= 0) {
+      return;
+    }
+    setSavingGoals(true);
+    try {
+      const updatedProfile = await api.updateProfile({
+        daily_calorie_goal: cal,
+        daily_water_goal_ml: wat,
+      });
+      setProfile(updatedProfile);
+      setIsEditingGoals(false);
+    } catch {
+      // Keep existing values
+    } finally {
+      setSavingGoals(false);
+    }
+  };
 
   const todayWorkouts = workouts.filter((w) => isToday(w.logged_at));
   const todayNutrition = nutrition.filter((n) => isToday(n.logged_at));
@@ -81,12 +117,46 @@ export default function HomeScreen() {
                 {user?.email}
               </ThemedText>
             </ThemedView>
-            <Pressable onPress={signOut}>
-              <ThemedText type="link" themeColor="tint">
-                Sign out
-              </ThemedText>
-            </Pressable>
+            <ThemedView style={styles.headerActions}>
+              <Pressable onPress={() => setIsEditingGoals(!isEditingGoals)} style={styles.editGoalsButton}>
+                <ThemedText type="link" themeColor="tint">
+                  {isEditingGoals ? 'Close Goals' : 'Edit Goals'}
+                </ThemedText>
+              </Pressable>
+              <Pressable onPress={signOut}>
+                <ThemedText type="link" themeColor="tint">
+                  Sign out
+                </ThemedText>
+              </Pressable>
+            </ThemedView>
           </ThemedView>
+
+          {isEditingGoals && (
+            <ThemedView type="backgroundElement" style={styles.goalsForm}>
+              <ThemedText type="smallBold">UPDATE DAILY GOALS</ThemedText>
+              <ThemedView style={styles.inlineFields}>
+                <ThemedView style={styles.inlineField}>
+                  <LabeledInput
+                    label="Calorie Goal (kcal)"
+                    value={calorieGoalInput}
+                    onChangeText={setCalorieGoalInput}
+                    keyboardType="number-pad"
+                    placeholder="2000"
+                  />
+                </ThemedView>
+                <ThemedView style={styles.inlineField}>
+                  <LabeledInput
+                    label="Water Goal (ml)"
+                    value={waterGoalInput}
+                    onChangeText={setWaterGoalInput}
+                    keyboardType="number-pad"
+                    placeholder="2000"
+                  />
+                </ThemedView>
+              </ThemedView>
+              <PrimaryButton title="Save Goals" onPress={saveGoals} loading={savingGoals} />
+            </ThemedView>
+          )}
 
           <ThemedView style={styles.statsGrid}>
             <StatCard label="Workouts" value={todayWorkouts.length} unit="sessions" />
@@ -148,6 +218,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  editGoalsButton: {
+    marginRight: Spacing.four,
+  },
+  goalsForm: {
+    borderRadius: Spacing.three,
+    padding: Spacing.three,
+    gap: Spacing.three,
+  },
+  inlineFields: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+  },
+  inlineField: {
+    flex: 1,
   },
   statsGrid: {
     flexDirection: 'row',
