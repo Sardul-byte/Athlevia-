@@ -1,4 +1,4 @@
-﻿"""SQLAlchemy ORM models mirroring schema.sql."""
+"""SQLAlchemy ORM models mirroring schema.sql."""
 
 import uuid
 
@@ -33,6 +33,8 @@ class User(Base):
     nutrition_logs = relationship(
         "NutritionLog", back_populates="user", cascade="all, delete-orphan"
     )
+    profile = relationship("UserProfile", uselist=False, back_populates="user", cascade="all, delete-orphan")
+
 
 
 class Workout(Base):
@@ -78,3 +80,19 @@ class NutritionLog(Base):
     logged_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", back_populates="nutrition_logs")
+
+
+class UserProfile(Base):
+    __tablename__ = "user_profiles"
+
+    id = Column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id = Column(Uuid, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
+    daily_calorie_goal = Column(Integer, default=2000, nullable=False)
+    daily_water_goal_ml = Column(Integer, default=2000, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    user = relationship("User", back_populates="profile")
+

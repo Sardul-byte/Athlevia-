@@ -44,3 +44,14 @@ CREATE TABLE nutrition_logs (
     water_ml INT DEFAULT 0,
     logged_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- User Profiles Table
+CREATE TABLE user_profiles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    daily_calorie_goal INT NOT NULL DEFAULT 2000,
+    daily_water_goal_ml INT NOT NULL DEFAULT 2000,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
