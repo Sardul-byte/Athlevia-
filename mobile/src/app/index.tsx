@@ -10,6 +10,7 @@ import { BottomTabInset, MaxContentWidth, Spacing, TopTabInset } from '@/constan
 import { useTheme } from '@/hooks/use-theme';
 import { api, type NutritionLog, type Workout, type UserProfile } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
+import { readCache, writeCache } from '@/lib/cache';
 
 function isToday(iso: string) {
   const date = new Date(iso);
@@ -49,6 +50,12 @@ export default function HomeScreen() {
   const [waterGoalInput, setWaterGoalInput] = useState('');
   const [savingGoals, setSavingGoals] = useState(false);
 
+  const applyProfile = useCallback((p: UserProfile) => {
+    setProfile(p);
+    setCalorieGoalInput(p.daily_calorie_goal.toString());
+    setWaterGoalInput(p.daily_water_goal_ml.toString());
+  }, []);
+
   const load = useCallback(async () => {
     try {
       const [w, n, p] = await Promise.all([
@@ -58,13 +65,22 @@ export default function HomeScreen() {
       ]);
       setWorkouts(w);
       setNutrition(n);
-      setProfile(p);
-      setCalorieGoalInput(p.daily_calorie_goal.toString());
-      setWaterGoalInput(p.daily_water_goal_ml.toString());
+      applyProfile(p);
+      writeCache('workouts', w);
+      writeCache('nutrition', n);
+      writeCache('profile', p);
     } catch {
-      // Backend unreachable; keep whatever we had.
+      // Backend unreachable; fall back to the last cached snapshot.
+      const [w, n, p] = await Promise.all([
+        readCache<Workout[]>('workouts'),
+        readCache<NutritionLog[]>('nutrition'),
+        readCache<UserProfile>('profile'),
+      ]);
+      if (w) setWorkouts(w);
+      if (n) setNutrition(n);
+      if (p) applyProfile(p);
     }
-  }, []);
+  }, [applyProfile]);
 
   useFocusEffect(
     useCallback(() => {

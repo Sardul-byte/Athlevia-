@@ -9,6 +9,7 @@ import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing, TopTabInset } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { api, type Workout } from '@/lib/api';
+import { readCache, writeCache } from '@/lib/cache';
 
 const CATEGORIES = ['strength', 'cardio', 'swimming', 'sports', 'other'] as const;
 
@@ -25,9 +26,13 @@ export default function WorkoutsScreen() {
 
   const load = useCallback(async () => {
     try {
-      setWorkouts(await api.getWorkouts());
+      const fresh = await api.getWorkouts();
+      setWorkouts(fresh);
+      writeCache('workouts', fresh);
     } catch {
-      // Backend unreachable; keep current list.
+      // Backend unreachable; fall back to the last cached snapshot.
+      const cached = await readCache<Workout[]>('workouts');
+      if (cached) setWorkouts(cached);
     }
   }, []);
 

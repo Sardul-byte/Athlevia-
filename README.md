@@ -132,12 +132,21 @@ pip install -r requirements.txt
 # 2. Configure environment (copy and edit)
 cp .env.example .env
 
-# 3. Create the database and apply the schema
+# 3. Create the database and apply migrations
 psql -U postgres -c "CREATE DATABASE athlevia;"
-psql -U postgres -d athlevia -f schema.sql
+alembic upgrade head
 
 # 4. Start the API server
 uvicorn main:app --reload
 ```
+
+Schema changes are versioned with Alembic. After editing `models.py`, generate and apply a migration:
+
+```bash
+alembic revision --autogenerate -m "describe the change"
+alembic upgrade head
+```
+
+If you previously created the tables with `schema.sql`, mark the existing database as up to date once with `alembic stamp head` instead of running `upgrade`.
 
 Interactive API docs are available at `http://localhost:8000/docs` once the server is running.

@@ -6,8 +6,8 @@
 - [x] Define initial database schema
 - [x] Connect FastAPI application to PostgreSQL database
 - [x] Implement JWT-based token authentication
-- [ ] Add Alembic migrations for schema versioning
+- [x] Add Alembic migrations for schema versioning
 - [x] Connect the Expo mobile client to the backend API (auth, dashboard, workouts, health hub)
-- [ ] Add pull-to-refresh and offline caching to the mobile client
+- [x] Add pull-to-refresh and offline caching to the mobile client
 - [ ] Set up secure cloud storage bucket for blood reports
 

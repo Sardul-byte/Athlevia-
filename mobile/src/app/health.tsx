@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 
@@ -8,6 +8,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing, TopTabInset } from '@/constants/theme';
 import { api, type NutritionLog, type VitalLog } from '@/lib/api';
+import { readCache, writeCache } from '@/lib/cache';
 
 const WATER_PRESETS = [250, 500, 750] as const;
 
@@ -26,6 +27,7 @@ export default function HealthScreen() {
   const [vitals, setVitals] = useState<VitalLog[]>([]);
   const [nutrition, setNutrition] = useState<NutritionLog[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Vitals form
   const [weight, setWeight] = useState('');
@@ -45,8 +47,16 @@ export default function HealthScreen() {
       const [v, n] = await Promise.all([api.getVitals(), api.getNutrition()]);
       setVitals(v);
       setNutrition(n);
+      writeCache('vitals', v);
+      writeCache('nutrition', n);
     } catch {
-      // Backend unreachable; keep current data.
+      // Backend unreachable; fall back to the last cached snapshot.
+      const [v, n] = await Promise.all([
+        readCache<VitalLog[]>('vitals'),
+        readCache<NutritionLog[]>('nutrition'),
+      ]);
+      if (v) setVitals(v);
+      if (n) setNutrition(n);
     }
   }, []);
 
@@ -55,6 +65,12 @@ export default function HealthScreen() {
       load();
     }, [load]),
   );
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  }, [load]);
 
   const latestVitals = vitals[0];
   const latestBmi = bmi(latestVitals);
@@ -121,7 +137,9 @@ export default function HealthScreen() {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
           <ThemedText type="subtitle">Health Hub</ThemedText>
 
           {latestVitals && (
