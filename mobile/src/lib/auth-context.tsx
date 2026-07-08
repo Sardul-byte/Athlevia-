@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 import { api, type User } from '@/lib/api';
+import { clearCache } from '@/lib/cache';
 import { clearToken, getToken, setToken } from '@/lib/token-storage';
 
 type AuthState = {
@@ -46,7 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const signOut = useCallback(async () => {
-    await clearToken();
+    await Promise.all([clearToken(), clearCache()]);
     setUser(null);
   }, []);
 
