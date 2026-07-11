@@ -5,11 +5,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, date
 from uuid import UUID
 
 from database import get_db
-from models import NutritionLog, User, VitalLog, Workout, UserProfile
+from models import NutritionLog, User, VitalLog, Workout, UserProfile, BloodReport
 from security import create_access_token, get_current_user, hash_password, verify_password
 
 app = FastAPI(
@@ -166,6 +166,22 @@ class NutritionLogResponse(NutritionLogCreate):
     class Config:
         from_attributes = True
 
+class BloodReportCreate(BaseModel):
+    vitamin_d: Optional[float] = None
+    vitamin_b12: Optional[float] = None
+    cholesterol_ldl: Optional[float] = None
+    cholesterol_hdl: Optional[float] = None
+    thyroid_tsh: Optional[float] = None
+    test_date: date
+
+class BloodReportResponse(BloodReportCreate):
+    id: UUID
+    user_id: UUID
+    logged_at: datetime
+
+    class Config:
+        from_attributes = True
+
 # Workout Endpoints
 @app.post("/workouts", response_model=WorkoutResponse, status_code=status.HTTP_201_CREATED)
 def log_workout(
@@ -261,3 +277,44 @@ def get_nutrition(
 @app.get("/health/status")
 def health_check():
     return {"status": "healthy", "timestamp": datetime.utcnow()}
+
+# Blood Report Endpoints
+@app.post("/blood-reports", response_model=BloodReportResponse, status_code=status.HTTP_201_CREATED)
+def log_blood_report(
+    report: BloodReportCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    record = BloodReport(user_id=current_user.id, **report.model_dump())
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+    return record
+
+@app.get("/blood-reports", response_model=List[BloodReportResponse])
+def get_blood_reports(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return (
+        db.query(BloodReport)
+        .filter(BloodReport.user_id == current_user.id)
+        .order_by(BloodReport.test_date.desc(), BloodReport.logged_at.desc())
+        .all()
+    )
+
+@app.delete("/blood-reports/{report_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_blood_report(
+    report_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    record = (
+        db.query(BloodReport)
+        .filter(BloodReport.id == report_id, BloodReport.user_id == current_user.id)
+        .first()
+    )
+    if record is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Blood report not found")
+    db.delete(record)
+    db.commit()
