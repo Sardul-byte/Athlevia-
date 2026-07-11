@@ -5,6 +5,7 @@ import uuid
 from sqlalchemy import (
     DECIMAL,
     Column,
+    Date,
     DateTime,
     ForeignKey,
     Integer,
@@ -34,6 +35,7 @@ class User(Base):
         "NutritionLog", back_populates="user", cascade="all, delete-orphan"
     )
     profile = relationship("UserProfile", uselist=False, back_populates="user", cascade="all, delete-orphan")
+    blood_reports = relationship("BloodReport", back_populates="user", cascade="all, delete-orphan")
 
 
 
@@ -95,4 +97,20 @@ class UserProfile(Base):
     )
 
     user = relationship("User", back_populates="profile")
+
+
+class BloodReport(Base):
+    __tablename__ = "blood_reports"
+
+    id = Column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id = Column(Uuid, ForeignKey("users.id", ondelete="CASCADE"))
+    vitamin_d = Column(DECIMAL(6, 2))
+    vitamin_b12 = Column(DECIMAL(6, 2))
+    cholesterol_ldl = Column(DECIMAL(6, 2))
+    cholesterol_hdl = Column(DECIMAL(6, 2))
+    thyroid_tsh = Column(DECIMAL(6, 2))
+    test_date = Column(Date, nullable=False)
+    logged_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", back_populates="blood_reports")
 

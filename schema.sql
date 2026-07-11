@@ -55,3 +55,17 @@ CREATE TABLE user_profiles (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Blood Reports Table
+CREATE TABLE blood_reports (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    vitamin_d DECIMAL(6,2),
+    vitamin_b12 DECIMAL(6,2),
+    cholesterol_ldl DECIMAL(6,2),
+    cholesterol_hdl DECIMAL(6,2),
+    thyroid_tsh DECIMAL(6,2),
+    test_date DATE NOT NULL,
+    logged_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+
