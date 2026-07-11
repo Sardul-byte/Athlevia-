@@ -81,8 +81,8 @@ Athlevia is being built iteratively, step-by-step:
 - [x] Connect database via SQLAlchemy ([database.py](file:///C:/Users/Sardul/Desktop/Projects/Atlevia%20%28Own%29/database.py), [models.py](file:///C:/Users/Sardul/Desktop/Projects/Atlevia%20%28Own%29/models.py)).
 - [x] Implement user authentication (JWT tokens, sign up/in flow — [security.py](file:///C:/Users/Sardul/Desktop/Projects/Atlevia%20%28Own%29/security.py)).
 - [x] Persist workouts, vitals, and nutrition logs through authenticated endpoints.
-- [ ] Add Alembic migration scripts.
-- [ ] Set up secure cloud storage bucket for blood reports.
+- [x] Add Alembic migration scripts.
+- [x] Set up secure cloud storage bucket for blood reports.
 
 ### 📅 Phase 4: Fitness Logging Features
 - [ ] Implement active workout tracker with timers.
@@ -102,7 +102,7 @@ Athlevia is being built iteratively, step-by-step:
 
 ### 📅 Phase 6: Vitals, Reports & Analytics
 - [ ] Implement weight/height progress trackers with BMI charts.
-- [ ] Build blood report file uploader.
+- [x] Build blood report file uploader.
 - [ ] Implement interactive line charts showing biomarker level trends over time.
 
 ### 📅 Phase 7: Perks, Challenges & Rewards

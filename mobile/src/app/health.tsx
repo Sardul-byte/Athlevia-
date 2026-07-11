@@ -23,6 +23,39 @@ function bmi(vital: VitalLog | undefined): string | null {
   return (Number(vital.weight_kg) / (meters * meters)).toFixed(1);
 }
 
+type OptimalStatus = { status: 'Optimal' | 'Suboptimal' | 'Low' | 'High'; color: string };
+
+function getBiomarkerStatus(
+  key: 'vitamin_d' | 'vitamin_b12' | 'cholesterol_ldl' | 'cholesterol_hdl' | 'thyroid_tsh',
+  val: number,
+): OptimalStatus {
+  if (key === 'vitamin_d') {
+    if (val < 30) return { status: 'Low', color: '#EF4444' };
+    if (val <= 100) return { status: 'Optimal', color: '#10B981' };
+    return { status: 'High', color: '#EF4444' };
+  }
+  if (key === 'vitamin_b12') {
+    if (val < 200) return { status: 'Low', color: '#EF4444' };
+    if (val <= 900) return { status: 'Optimal', color: '#10B981' };
+    return { status: 'High', color: '#EF4444' };
+  }
+  if (key === 'cholesterol_ldl') {
+    if (val < 100) return { status: 'Optimal', color: '#10B981' };
+    if (val < 130) return { status: 'Suboptimal', color: '#F59E0B' };
+    return { status: 'High', color: '#EF4444' };
+  }
+  if (key === 'cholesterol_hdl') {
+    if (val < 40) return { status: 'Low', color: '#EF4444' };
+    return { status: 'Optimal', color: '#10B981' };
+  }
+  if (key === 'thyroid_tsh') {
+    if (val < 0.4) return { status: 'Low', color: '#EF4444' };
+    if (val <= 4.0) return { status: 'Optimal', color: '#10B981' };
+    return { status: 'High', color: '#EF4444' };
+  }
+  return { status: 'Optimal', color: '#10B981' };
+}
+
 export default function HealthScreen() {
   const [vitals, setVitals] = useState<VitalLog[]>([]);
   const [nutrition, setNutrition] = useState<NutritionLog[]>([]);
@@ -413,29 +446,44 @@ export default function HealthScreen() {
                   </ThemedView>
                   <ThemedView style={styles.biomarkerGrid}>
                     {r.vitamin_d !== null && (
-                      <ThemedText type="small" style={styles.biomarkerText}>
-                        Vit D: {r.vitamin_d} ng/mL
-                      </ThemedText>
+                      <ThemedView style={styles.biomarkerBadge}>
+                        <ThemedText type="small">Vit D: {r.vitamin_d} ng/mL</ThemedText>
+                        <ThemedText type="smallBold" style={{ color: getBiomarkerStatus('vitamin_d', Number(r.vitamin_d)).color }}>
+                          {' '}({getBiomarkerStatus('vitamin_d', Number(r.vitamin_d)).status})
+                        </ThemedText>
+                      </ThemedView>
                     )}
                     {r.vitamin_b12 !== null && (
-                      <ThemedText type="small" style={styles.biomarkerText}>
-                        Vit B12: {r.vitamin_b12} pg/mL
-                      </ThemedText>
+                      <ThemedView style={styles.biomarkerBadge}>
+                        <ThemedText type="small">Vit B12: {r.vitamin_b12} pg/mL</ThemedText>
+                        <ThemedText type="smallBold" style={{ color: getBiomarkerStatus('vitamin_b12', Number(r.vitamin_b12)).color }}>
+                          {' '}({getBiomarkerStatus('vitamin_b12', Number(r.vitamin_b12)).status})
+                        </ThemedText>
+                      </ThemedView>
                     )}
                     {r.cholesterol_ldl !== null && (
-                      <ThemedText type="small" style={styles.biomarkerText}>
-                        LDL: {r.cholesterol_ldl} mg/dL
-                      </ThemedText>
+                      <ThemedView style={styles.biomarkerBadge}>
+                        <ThemedText type="small">LDL: {r.cholesterol_ldl} mg/dL</ThemedText>
+                        <ThemedText type="smallBold" style={{ color: getBiomarkerStatus('cholesterol_ldl', Number(r.cholesterol_ldl)).color }}>
+                          {' '}({getBiomarkerStatus('cholesterol_ldl', Number(r.cholesterol_ldl)).status})
+                        </ThemedText>
+                      </ThemedView>
                     )}
                     {r.cholesterol_hdl !== null && (
-                      <ThemedText type="small" style={styles.biomarkerText}>
-                        HDL: {r.cholesterol_hdl} mg/dL
-                      </ThemedText>
+                      <ThemedView style={styles.biomarkerBadge}>
+                        <ThemedText type="small">HDL: {r.cholesterol_hdl} mg/dL</ThemedText>
+                        <ThemedText type="smallBold" style={{ color: getBiomarkerStatus('cholesterol_hdl', Number(r.cholesterol_hdl)).color }}>
+                          {' '}({getBiomarkerStatus('cholesterol_hdl', Number(r.cholesterol_hdl)).status})
+                        </ThemedText>
+                      </ThemedView>
                     )}
                     {r.thyroid_tsh !== null && (
-                      <ThemedText type="small" style={styles.biomarkerText}>
-                        TSH: {r.thyroid_tsh} uIU/mL
-                      </ThemedText>
+                      <ThemedView style={styles.biomarkerBadge}>
+                        <ThemedText type="small">TSH: {r.thyroid_tsh} uIU/mL</ThemedText>
+                        <ThemedText type="smallBold" style={{ color: getBiomarkerStatus('thyroid_tsh', Number(r.thyroid_tsh)).color }}>
+                          {' '}({getBiomarkerStatus('thyroid_tsh', Number(r.thyroid_tsh)).status})
+                        </ThemedText>
+                      </ThemedView>
                     )}
                   </ThemedView>
                 </ThemedView>
@@ -568,5 +616,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.two,
     paddingVertical: Spacing.one,
     borderRadius: Spacing.one,
+  },
+  biomarkerBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.one,
+    borderRadius: Spacing.one,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 });
