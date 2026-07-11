@@ -7,7 +7,7 @@ import { LabeledInput, PrimaryButton } from '@/components/form';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing, TopTabInset } from '@/constants/theme';
-import { api, type NutritionLog, type VitalLog } from '@/lib/api';
+import { api, type NutritionLog, type VitalLog, type BloodReport } from '@/lib/api';
 import { readCache, writeCache } from '@/lib/cache';
 
 const WATER_PRESETS = [250, 500, 750] as const;
@@ -42,21 +42,40 @@ export default function HealthScreen() {
   const [foodCalories, setFoodCalories] = useState('');
   const [savingFood, setSavingFood] = useState(false);
 
+  // Blood reports state
+  const [bloodReports, setBloodReports] = useState<BloodReport[]>([]);
+  const [vitD, setVitD] = useState('');
+  const [vitB12, setVitB12] = useState('');
+  const [ldl, setLdl] = useState('');
+  const [hdl, setHdl] = useState('');
+  const [tsh, setTsh] = useState('');
+  const [testDate, setTestDate] = useState(new Date().toISOString().split('T')[0]);
+  const [savingReport, setSavingReport] = useState(false);
+  const [isAddingReport, setIsAddingReport] = useState(false);
+
   const load = useCallback(async () => {
     try {
-      const [v, n] = await Promise.all([api.getVitals(), api.getNutrition()]);
+      const [v, n, b] = await Promise.all([
+        api.getVitals(),
+        api.getNutrition(),
+        api.getBloodReports(),
+      ]);
       setVitals(v);
       setNutrition(n);
+      setBloodReports(b);
       writeCache('vitals', v);
       writeCache('nutrition', n);
+      writeCache('blood_reports', b);
     } catch {
       // Backend unreachable; fall back to the last cached snapshot.
-      const [v, n] = await Promise.all([
+      const [v, n, b] = await Promise.all([
         readCache<VitalLog[]>('vitals'),
         readCache<NutritionLog[]>('nutrition'),
+        readCache<BloodReport[]>('blood_reports'),
       ]);
       if (v) setVitals(v);
       if (n) setNutrition(n);
+      if (b) setBloodReports(b);
     }
   }, []);
 
@@ -131,6 +150,57 @@ export default function HealthScreen() {
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not log water');
+    }
+  };
+
+  const saveReport = async () => {
+    const dVal = parseNum(vitD);
+    const bVal = parseNum(vitB12);
+    const ldlVal = parseNum(ldl);
+    const hdlVal = parseNum(hdl);
+    const tshVal = parseNum(tsh);
+
+    if (!testDate.trim()) {
+      setError('Please enter a valid test date.');
+      return;
+    }
+    if (dVal === undefined && bVal === undefined && ldlVal === undefined && hdlVal === undefined && tshVal === undefined) {
+      setError('Enter at least one biomarker value.');
+      return;
+    }
+
+    setError(null);
+    setSavingReport(true);
+    try {
+      await api.logBloodReport({
+        vitamin_d: dVal,
+        vitamin_b12: bVal,
+        cholesterol_ldl: ldlVal,
+        cholesterol_hdl: hdlVal,
+        thyroid_tsh: tshVal,
+        test_date: testDate,
+      });
+      setVitD('');
+      setVitB12('');
+      setLdl('');
+      setHdl('');
+      setTsh('');
+      setIsAddingReport(false);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save blood report');
+    } finally {
+      setSavingReport(false);
+    }
+  };
+
+  const deleteReport = async (id: string) => {
+    setError(null);
+    try {
+      await api.deleteBloodReport(id);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not delete blood report');
     }
   };
 
@@ -251,6 +321,128 @@ export default function HealthScreen() {
             ))}
           </ThemedView>
 
+          <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionTitle}>
+            BLOOD REPORTS & BIOMARKERS
+          </ThemedText>
+
+          <ThemedView type="backgroundElement" style={styles.summaryCard}>
+            <Pressable onPress={() => setIsAddingReport(!isAddingReport)} style={styles.headerPressable}>
+              <ThemedText type="smallBold" themeColor="tint">
+                {isAddingReport ? 'Close Log Form' : '+ Log Lab Blood Report'}
+              </ThemedText>
+            </Pressable>
+
+            {isAddingReport && (
+              <ThemedView style={styles.reportForm}>
+                <ThemedView style={styles.inlineFields}>
+                  <ThemedView style={styles.inlineField}>
+                    <LabeledInput
+                      label="Vit D (ng/mL)"
+                      value={vitD}
+                      onChangeText={setVitD}
+                      keyboardType="decimal-pad"
+                      placeholder="e.g. 32"
+                    />
+                  </ThemedView>
+                  <ThemedView style={styles.inlineField}>
+                    <LabeledInput
+                      label="Vit B12 (pg/mL)"
+                      value={vitB12}
+                      onChangeText={setVitB12}
+                      keyboardType="decimal-pad"
+                      placeholder="e.g. 350"
+                    />
+                  </ThemedView>
+                </ThemedView>
+
+                <ThemedView style={styles.inlineFields}>
+                  <ThemedView style={styles.inlineField}>
+                    <LabeledInput
+                      label="LDL Chol. (mg/dL)"
+                      value={ldl}
+                      onChangeText={setLdl}
+                      keyboardType="decimal-pad"
+                      placeholder="e.g. 95"
+                    />
+                  </ThemedView>
+                  <ThemedView style={styles.inlineField}>
+                    <LabeledInput
+                      label="HDL Chol. (mg/dL)"
+                      value={hdl}
+                      onChangeText={setHdl}
+                      keyboardType="decimal-pad"
+                      placeholder="e.g. 50"
+                    />
+                  </ThemedView>
+                </ThemedView>
+
+                <ThemedView style={styles.inlineFields}>
+                  <ThemedView style={styles.inlineField}>
+                    <LabeledInput
+                      label="Thyroid TSH (uIU/mL)"
+                      value={tsh}
+                      onChangeText={setTsh}
+                      keyboardType="decimal-pad"
+                      placeholder="e.g. 1.8"
+                    />
+                  </ThemedView>
+                  <ThemedView style={styles.inlineField}>
+                    <LabeledInput
+                      label="Test Date (YYYY-MM-DD)"
+                      value={testDate}
+                      onChangeText={setTestDate}
+                      placeholder="YYYY-MM-DD"
+                    />
+                  </ThemedView>
+                </ThemedView>
+
+                <PrimaryButton title="Save Report" onPress={saveReport} loading={savingReport} />
+              </ThemedView>
+            )}
+          </ThemedView>
+
+          {bloodReports.length > 0 && (
+            <ThemedView style={styles.reportsList}>
+              {bloodReports.slice(0, 5).map((r) => (
+                <ThemedView key={r.id} type="backgroundElement" style={styles.reportCard}>
+                  <ThemedView style={styles.reportCardHeader}>
+                    <ThemedText type="smallBold">Lab Report · {r.test_date}</ThemedText>
+                    <Pressable onPress={() => deleteReport(r.id)}>
+                      <ThemedText type="smallBold" style={{ color: '#EF4444' }}>Delete</ThemedText>
+                    </Pressable>
+                  </ThemedView>
+                  <ThemedView style={styles.biomarkerGrid}>
+                    {r.vitamin_d !== null && (
+                      <ThemedText type="small" style={styles.biomarkerText}>
+                        Vit D: {r.vitamin_d} ng/mL
+                      </ThemedText>
+                    )}
+                    {r.vitamin_b12 !== null && (
+                      <ThemedText type="small" style={styles.biomarkerText}>
+                        Vit B12: {r.vitamin_b12} pg/mL
+                      </ThemedText>
+                    )}
+                    {r.cholesterol_ldl !== null && (
+                      <ThemedText type="small" style={styles.biomarkerText}>
+                        LDL: {r.cholesterol_ldl} mg/dL
+                      </ThemedText>
+                    )}
+                    {r.cholesterol_hdl !== null && (
+                      <ThemedText type="small" style={styles.biomarkerText}>
+                        HDL: {r.cholesterol_hdl} mg/dL
+                      </ThemedText>
+                    )}
+                    {r.thyroid_tsh !== null && (
+                      <ThemedText type="small" style={styles.biomarkerText}>
+                        TSH: {r.thyroid_tsh} uIU/mL
+                      </ThemedText>
+                    )}
+                  </ThemedView>
+                </ThemedView>
+              ))}
+            </ThemedView>
+          )}
+
           {error && (
             <ThemedText type="small" style={styles.error}>
               {error}
@@ -341,5 +533,40 @@ const styles = StyleSheet.create({
   },
   error: {
     color: '#EF4444',
+  },
+  headerPressable: {
+    paddingVertical: Spacing.one,
+    alignItems: 'center',
+  },
+  reportForm: {
+    marginTop: Spacing.three,
+    gap: Spacing.three,
+  },
+  reportsList: {
+    gap: Spacing.two,
+  },
+  reportCard: {
+    borderRadius: Spacing.three,
+    padding: Spacing.three,
+    gap: Spacing.two,
+  },
+  reportCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    paddingBottom: Spacing.one,
+  },
+  biomarkerGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.two,
+  },
+  biomarkerText: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.one,
+    borderRadius: Spacing.one,
   },
 });
