@@ -88,6 +88,18 @@ export type UserProfile = {
   updated_at: string;
 };
 
+export type BloodReport = {
+  id: string;
+  user_id: string;
+  vitamin_d: number | null;
+  vitamin_b12: number | null;
+  cholesterol_ldl: number | null;
+  cholesterol_hdl: number | null;
+  thyroid_tsh: number | null;
+  test_date: string;
+  logged_at: string;
+};
+
 
 // --- Endpoints ---
 
@@ -128,4 +140,15 @@ export const api = {
   getProfile: () => request<UserProfile>('/profiles/me'),
   updateProfile: (profile: Partial<Pick<UserProfile, 'daily_calorie_goal' | 'daily_water_goal_ml'>>) =>
     request<UserProfile>('/profiles/me', { method: 'PUT', body: JSON.stringify(profile) }),
+
+  getBloodReports: () => request<BloodReport[]>('/blood-reports'),
+  logBloodReport: (report: {
+    vitamin_d?: number;
+    vitamin_b12?: number;
+    cholesterol_ldl?: number;
+    cholesterol_hdl?: number;
+    thyroid_tsh?: number;
+    test_date: string;
+  }) => request<BloodReport>('/blood-reports', { method: 'POST', body: JSON.stringify(report) }),
+  deleteBloodReport: (id: string) => request<void>(`/blood-reports/${id}`, { method: 'DELETE' }),
 };
