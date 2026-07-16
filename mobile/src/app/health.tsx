@@ -15,6 +15,15 @@ const WATER_PRESETS = [250, 500, 750] as const;
 
 type OptimalStatus = { status: 'Optimal' | 'Suboptimal' | 'Low' | 'High'; color: string };
 
+const BIOMARKERS_INFO = {
+  vitamin_d: { label: 'Vitamin D', unit: 'ng/mL', ref: '30 - 100 ng/mL' },
+  vitamin_b12: { label: 'Vitamin B12', unit: 'pg/mL', ref: '200 - 900 pg/mL' },
+  cholesterol_ldl: { label: 'LDL Cholesterol', unit: 'mg/dL', ref: '< 100 mg/dL' },
+  cholesterol_hdl: { label: 'HDL Cholesterol', unit: 'mg/dL', ref: '> 40 mg/dL' },
+  thyroid_tsh: { label: 'Thyroid TSH', unit: 'uIU/mL', ref: '0.4 - 4.0 uIU/mL' },
+} as const;
+
+
 function parseNum(value: string): number | undefined {
   const n = parseFloat(value);
   return Number.isFinite(n) && n > 0 ? n : undefined;
@@ -95,6 +104,15 @@ export default function HealthScreen() {
   const [newSuppDosage, setNewSuppDosage] = useState('');
   const [newSuppTime, setNewSuppTime] = useState('');
   const [savingSupp, setSavingSupp] = useState(false);
+
+  // Biomarkers chart state
+  const [selectedBiomarker, setSelectedBiomarker] = useState<keyof typeof BIOMARKERS_INFO>('vitamin_d');
+
+  const reportsWithBiomarker = bloodReports
+    .filter((r) => r[selectedBiomarker] !== null)
+    .sort((a, b) => new Date(a.test_date).getTime() - new Date(b.test_date).getTime());
+  const maxVal = Math.max(...reportsWithBiomarker.map((r) => Number(r[selectedBiomarker])), 1);
+
 
   const load = useCallback(async () => {
     try {
@@ -596,6 +614,69 @@ export default function HealthScreen() {
             )}
           </ThemedView>
 
+          {/* Biomarker Trend Charts */}
+          {bloodReports.length > 0 && (
+            <ThemedView type="backgroundElement" style={styles.chartCard}>
+              <ThemedText type="smallBold" themeColor="textSecondary">
+                BIOMARKER TRENDS
+              </ThemedText>
+              
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.biomarkerSelector}>
+                {(Object.keys(BIOMARKERS_INFO) as Array<keyof typeof BIOMARKERS_INFO>).map((key) => (
+                  <Pressable key={key} onPress={() => setSelectedBiomarker(key)}>
+                    <ThemedView
+                      type={selectedBiomarker === key ? 'backgroundSelected' : 'background'}
+                      style={[styles.biomarkerChip, selectedBiomarker === key && { borderColor: theme.tint, borderWidth: 1 }]}>
+                      <ThemedText type="small" style={selectedBiomarker === key && { fontWeight: 'bold' }}>
+                        {BIOMARKERS_INFO[key].label}
+                      </ThemedText>
+                    </ThemedView>
+                  </Pressable>
+                ))}
+              </ScrollView>
+
+              {reportsWithBiomarker.length === 0 ? (
+                <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center', paddingVertical: Spacing.four }}>
+                  No logged data points for {BIOMARKERS_INFO[selectedBiomarker].label}.
+                </ThemedText>
+              ) : (
+                <ThemedView style={styles.chartContainer}>
+                  <ThemedView style={styles.chartYAxis}>
+                    <ThemedText type="small" themeColor="textSecondary" style={{ fontSize: 9 }}>Max: {maxVal.toFixed(0)}</ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary" style={{ fontSize: 9 }}>Ref: {BIOMARKERS_INFO[selectedBiomarker].ref}</ThemedText>
+                  </ThemedView>
+                  <ThemedView style={styles.chartBars}>
+                    {reportsWithBiomarker.slice(-5).map((r) => {
+                      const val = Number(r[selectedBiomarker]);
+                      const barHeight = Math.max(15, Math.round((val / maxVal) * 100));
+                      const status = getBiomarkerStatus(selectedBiomarker, val);
+                      return (
+                        <ThemedView key={r.id} style={styles.chartCol}>
+                          <ThemedText type="smallBold" style={{ color: status.color, fontSize: 10 }}>
+                            {val}
+                          </ThemedText>
+                          <ThemedView style={[
+                            styles.chartBarFill, 
+                            { 
+                              height: barHeight, 
+                              backgroundColor: status.color,
+                              opacity: 0.85
+                            }
+                          ]}>
+                            <ThemedView style={styles.chartGlowDot} />
+                          </ThemedView>
+                          <ThemedText type="small" themeColor="textSecondary" style={{ fontSize: 9 }}>
+                            {r.test_date.substring(5)}
+                          </ThemedText>
+                        </ThemedView>
+                      );
+                    })}
+                  </ThemedView>
+                </ThemedView>
+              )}
+            </ThemedView>
+          )}
+
           {bloodReports.length > 0 && (
             <ThemedView style={styles.reportsList}>
               {bloodReports.slice(0, 5).map((r) => (
@@ -831,5 +912,65 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: Spacing.two,
     borderRadius: Spacing.two,
+  },
+  chartCard: {
+    borderRadius: Spacing.three,
+    padding: Spacing.three,
+    gap: Spacing.two,
+  },
+  biomarkerSelector: {
+    flexDirection: 'row',
+    gap: Spacing.one,
+    paddingVertical: Spacing.one,
+  },
+  biomarkerChip: {
+    borderRadius: Spacing.four,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.one,
+    marginRight: Spacing.two,
+  },
+  chartContainer: {
+    flexDirection: 'row',
+    height: 160,
+    marginTop: Spacing.two,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: Spacing.two,
+    padding: Spacing.three,
+    alignItems: 'flex-end',
+  },
+  chartYAxis: {
+    justifyContent: 'space-between',
+    height: '100%',
+    paddingRight: Spacing.two,
+    borderRightWidth: 1,
+    borderRightColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'transparent',
+  },
+  chartBars: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'flex-end',
+    height: '100%',
+    paddingLeft: Spacing.two,
+    backgroundColor: 'transparent',
+  },
+  chartCol: {
+    alignItems: 'center',
+    gap: Spacing.one,
+    backgroundColor: 'transparent',
+  },
+  chartBarFill: {
+    width: 28,
+    borderRadius: Spacing.one,
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+  },
+  chartGlowDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#ffffff',
+    marginTop: 2,
   },
 });
