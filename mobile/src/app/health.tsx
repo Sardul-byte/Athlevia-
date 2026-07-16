@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet } from 'react-native';
+import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 
@@ -7,10 +7,13 @@ import { LabeledInput, PrimaryButton } from '@/components/form';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing, TopTabInset } from '@/constants/theme';
-import { api, type NutritionLog, type VitalLog, type BloodReport } from '@/lib/api';
+import { useTheme } from '@/hooks/use-theme';
+import { api, type NutritionLog, type VitalLog, type BloodReport, type SupplementToday } from '@/lib/api';
 import { readCache, writeCache } from '@/lib/cache';
 
 const WATER_PRESETS = [250, 500, 750] as const;
+
+type OptimalStatus = { status: 'Optimal' | 'Suboptimal' | 'Low' | 'High'; color: string };
 
 function parseNum(value: string): number | undefined {
   const n = parseFloat(value);
@@ -22,8 +25,6 @@ function bmi(vital: VitalLog | undefined): string | null {
   const meters = Number(vital.height_cm) / 100;
   return (Number(vital.weight_kg) / (meters * meters)).toFixed(1);
 }
-
-type OptimalStatus = { status: 'Optimal' | 'Suboptimal' | 'Low' | 'High'; color: string };
 
 function getBiomarkerStatus(
   key: 'vitamin_d' | 'vitamin_b12' | 'cholesterol_ldl' | 'cholesterol_hdl' | 'thyroid_tsh',
@@ -57,6 +58,7 @@ function getBiomarkerStatus(
 }
 
 export default function HealthScreen() {
+  const theme = useTheme();
   const [vitals, setVitals] = useState<VitalLog[]>([]);
   const [nutrition, setNutrition] = useState<NutritionLog[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -86,29 +88,42 @@ export default function HealthScreen() {
   const [savingReport, setSavingReport] = useState(false);
   const [isAddingReport, setIsAddingReport] = useState(false);
 
+  // Supplements state
+  const [supplements, setSupplements] = useState<SupplementToday[]>([]);
+  const [isManagingSupps, setIsManagingSupps] = useState(false);
+  const [newSuppName, setNewSuppName] = useState('');
+  const [newSuppDosage, setNewSuppDosage] = useState('');
+  const [newSuppTime, setNewSuppTime] = useState('');
+  const [savingSupp, setSavingSupp] = useState(false);
+
   const load = useCallback(async () => {
     try {
-      const [v, n, b] = await Promise.all([
+      const [v, n, b, s] = await Promise.all([
         api.getVitals(),
         api.getNutrition(),
         api.getBloodReports(),
+        api.getTodaySupplements(),
       ]);
       setVitals(v);
       setNutrition(n);
       setBloodReports(b);
+      setSupplements(s);
       writeCache('vitals', v);
       writeCache('nutrition', n);
       writeCache('blood_reports', b);
+      writeCache('supplements_today', s);
     } catch {
       // Backend unreachable; fall back to the last cached snapshot.
-      const [v, n, b] = await Promise.all([
+      const [v, n, b, s] = await Promise.all([
         readCache<VitalLog[]>('vitals'),
         readCache<NutritionLog[]>('nutrition'),
         readCache<BloodReport[]>('blood_reports'),
+        readCache<SupplementToday[]>('supplements_today'),
       ]);
       if (v) setVitals(v);
       if (n) setNutrition(n);
       if (b) setBloodReports(b);
+      if (s) setSupplements(s);
     }
   }, []);
 
@@ -237,6 +252,58 @@ export default function HealthScreen() {
     }
   };
 
+  // Supplements handlers
+  const handleToggleSupplement = async (id: string) => {
+    setError(null);
+    try {
+      const updated = await api.toggleSupplement(id);
+      setSupplements((prev) => prev.map((item) => (item.id === id ? updated : item)));
+      if (updated.taken) {
+        Alert.alert('Success', 'Supplement logged! You earned +10 Points! 💊');
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not toggle supplement');
+    }
+  };
+
+  const handleAddSupplement = async () => {
+    if (!newSuppName.trim()) {
+      setError('Supplement name is required.');
+      return;
+    }
+    setError(null);
+    setSavingSupp(true);
+    try {
+      await api.addSupplement({
+        name: newSuppName.trim(),
+        dosage: newSuppDosage.trim() || undefined,
+        schedule_time: newSuppTime.trim() || undefined,
+      });
+      setNewSuppName('');
+      setNewSuppDosage('');
+      setNewSuppTime('');
+      const s = await api.getTodaySupplements();
+      setSupplements(s);
+      writeCache('supplements_today', s);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not add supplement');
+    } finally {
+      setSavingSupp(false);
+    }
+  };
+
+  const handleDeleteSupplement = async (id: string) => {
+    setError(null);
+    try {
+      await api.deleteSupplement(id);
+      const s = await api.getTodaySupplements();
+      setSupplements(s);
+      writeCache('supplements_today', s);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not delete supplement');
+    }
+  };
+
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
@@ -313,7 +380,7 @@ export default function HealthScreen() {
               />
             </ThemedView>
           </ThemedView>
-          <PrimaryButton title="Save Vitals" onPress={saveVitals} loading={savingVitals} />
+          <PrimaryButton title="Save Vitals (+20 Pts)" onPress={saveVitals} loading={savingVitals} />
 
           <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionTitle}>
             LOG A MEAL
@@ -337,7 +404,7 @@ export default function HealthScreen() {
               />
             </ThemedView>
           </ThemedView>
-          <PrimaryButton title="Log Meal" onPress={saveFood} loading={savingFood} />
+          <PrimaryButton title="Log Meal (+15 Pts)" onPress={saveFood} loading={savingFood} />
 
           <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionTitle}>
             QUICK HYDRATION
@@ -347,11 +414,106 @@ export default function HealthScreen() {
               <Pressable key={ml} onPress={() => addWater(ml)} style={styles.waterButtonWrap}>
                 <ThemedView type="backgroundElement" style={styles.waterButton}>
                   <ThemedText type="smallBold" themeColor="tint">
-                    +{ml} ml
+                    +{ml} ml (+5 Pts)
                   </ThemedText>
                 </ThemedView>
               </Pressable>
             ))}
+          </ThemedView>
+
+          {/* Supplements checklist */}
+          <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionTitle}>
+            DAILY SUPPLEMENTS CHECKLIST
+          </ThemedText>
+          <ThemedView type="backgroundElement" style={styles.summaryCard}>
+            {supplements.length === 0 ? (
+              <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center', paddingVertical: Spacing.two }}>
+                No supplements scheduled. Tap "Manage Supplements" below to add some.
+              </ThemedText>
+            ) : (
+              <ThemedView style={styles.suppsList}>
+                {supplements.map((item) => (
+                  <Pressable key={item.id} onPress={() => handleToggleSupplement(item.id)} style={styles.suppRow}>
+                    <ThemedView style={styles.suppCheckCol}>
+                      <ThemedView style={[
+                        styles.checkbox,
+                        { borderColor: theme.tint },
+                        item.taken && { backgroundColor: theme.tint }
+                      ]}>
+                        {item.taken && <ThemedText style={{ color: '#fff', fontSize: 10, fontWeight: 'bold' }}>✓</ThemedText>}
+                      </ThemedView>
+                      <ThemedView style={{ backgroundColor: 'transparent' }}>
+                        <ThemedText type="smallBold" style={[item.taken && { textDecorationLine: 'line-through', opacity: 0.6 }]}>
+                          {item.name}
+                        </ThemedText>
+                        {(item.dosage || item.schedule_time) && (
+                          <ThemedText type="small" themeColor="textSecondary">
+                            {item.dosage} {item.schedule_time ? `· ${item.schedule_time}` : ''}
+                          </ThemedText>
+                        )}
+                      </ThemedView>
+                    </ThemedView>
+                    <ThemedText type="small" themeColor="tint">{item.taken ? 'Taken' : 'Log'}</ThemedText>
+                  </Pressable>
+                ))}
+              </ThemedView>
+            )}
+
+            <Pressable onPress={() => setIsManagingSupps(!isManagingSupps)} style={styles.manageSuppsBtn}>
+              <ThemedText type="smallBold" themeColor="tint">
+                {isManagingSupps ? 'Close Panel' : '⚙ Manage Supplements Schedule'}
+              </ThemedText>
+            </Pressable>
+
+            {isManagingSupps && (
+              <ThemedView style={styles.manageSuppsPanel}>
+                <ThemedText type="smallBold">ADD SUPPLEMENT</ThemedText>
+                <LabeledInput
+                  label="Supplement Name"
+                  value={newSuppName}
+                  onChangeText={setNewSuppName}
+                  placeholder="e.g. Omega 3, Vitamin D3"
+                />
+                <ThemedView style={styles.inlineFields}>
+                  <ThemedView style={styles.inlineField}>
+                    <LabeledInput
+                      label="Dosage"
+                      value={newSuppDosage}
+                      onChangeText={setNewSuppDosage}
+                      placeholder="e.g. 1 capsule, 5g"
+                    />
+                  </ThemedView>
+                  <ThemedView style={styles.inlineField}>
+                    <LabeledInput
+                      label="Schedule Time"
+                      value={newSuppTime}
+                      onChangeText={setNewSuppTime}
+                      placeholder="e.g. Morning, 08:00 AM"
+                    />
+                  </ThemedView>
+                </ThemedView>
+                <PrimaryButton title="Add Supplement" onPress={handleAddSupplement} loading={savingSupp} />
+
+                {supplements.length > 0 && (
+                  <ThemedView style={{ marginTop: Spacing.two, gap: Spacing.one }}>
+                    <ThemedText type="smallBold" themeColor="textSecondary">SCHEDULED LIST</ThemedText>
+                    {supplements.map((s) => (
+                      <ThemedView key={s.id} type="backgroundSelected" style={styles.suppManageRow}>
+                        <ThemedView style={{ backgroundColor: 'transparent' }}>
+                          <ThemedText type="smallBold">{s.name}</ThemedText>
+                          <ThemedText type="small" themeColor="textSecondary">
+                            {s.dosage} {s.schedule_time ? `· ${s.schedule_time}` : ''}
+                          </ThemedText>
+                        </ThemedView>
+                        <Pressable onPress={() => handleDeleteSupplement(s.id)}>
+                          <ThemedText type="small" style={{ color: '#EF4444' }}>Delete</ThemedText>
+                        </Pressable>
+                      </ThemedView>
+                    ))}
+                  </ThemedView>
+                )}
+              </ThemedView>
+            )}
           </ThemedView>
 
           <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionTitle}>
@@ -624,5 +786,50 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.one,
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  // Supplements elements styles
+  suppsList: {
+    gap: Spacing.two,
+    paddingVertical: Spacing.one,
+  },
+  suppRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: Spacing.two,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  suppCheckCol: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    backgroundColor: 'transparent',
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  manageSuppsBtn: {
+    paddingTop: Spacing.two,
+    alignItems: 'center',
+  },
+  manageSuppsPanel: {
+    marginTop: Spacing.three,
+    paddingTop: Spacing.three,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    gap: Spacing.three,
+  },
+  suppManageRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: Spacing.two,
+    borderRadius: Spacing.two,
   },
 });
