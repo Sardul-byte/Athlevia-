@@ -9,7 +9,7 @@ from datetime import datetime, date
 from uuid import UUID
 
 from database import get_db
-from models import NutritionLog, User, VitalLog, Workout, UserProfile, BloodReport, WorkoutSession, WorkoutSet
+from models import NutritionLog, User, VitalLog, Workout, UserProfile, BloodReport, WorkoutSession, WorkoutSet, Supplement, SupplementLog
 from security import create_access_token, get_current_user, hash_password, verify_password
 
 app = FastAPI(
@@ -90,6 +90,38 @@ class WorkoutSessionFinish(BaseModel):
     duration_minutes: int
     calories_burned: int
     category: str
+
+class SupplementCreate(BaseModel):
+    name: str
+    dosage: Optional[str] = None
+    schedule_time: Optional[str] = None
+
+class SupplementResponse(SupplementCreate):
+    id: UUID
+    user_id: UUID
+    active: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class SupplementLogResponse(BaseModel):
+    id: UUID
+    supplement_id: UUID
+    logged_date: date
+    taken: int
+
+    class Config:
+        from_attributes = True
+
+class SupplementTodayResponse(BaseModel):
+    id: UUID
+    name: str
+    dosage: Optional[str] = None
+    schedule_time: Optional[str] = None
+    taken: bool = False
+    log_id: Optional[UUID] = None
+
 
 
 class TokenResponse(BaseModel):
@@ -371,6 +403,126 @@ def finish_workout_session(
     db.commit()
     db.refresh(session)
     return session
+
+# Supplement Endpoints
+@app.get("/supplements", response_model=List[SupplementResponse])
+def get_supplements(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return (
+        db.query(Supplement)
+        .filter(Supplement.user_id == current_user.id, Supplement.active == 1)
+        .order_by(Supplement.created_at.desc())
+        .all()
+    )
+
+@app.post("/supplements", response_model=SupplementResponse, status_code=status.HTTP_201_CREATED)
+def create_supplement(
+    supplement: SupplementCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    record = Supplement(user_id=current_user.id, **supplement.model_dump())
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+    return record
+
+@app.delete("/supplements/{supplement_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_supplement(
+    supplement_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    record = (
+        db.query(Supplement)
+        .filter(Supplement.id == supplement_id, Supplement.user_id == current_user.id)
+        .first()
+    )
+    if record is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Supplement not found")
+    
+    record.active = 0
+    db.commit()
+
+@app.get("/supplements/today", response_model=List[SupplementTodayResponse])
+def get_today_supplements_checklist(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    today = date.today()
+    active_supps = (
+        db.query(Supplement)
+        .filter(Supplement.user_id == current_user.id, Supplement.active == 1)
+        .all()
+    )
+    today_logs = (
+        db.query(SupplementLog)
+        .filter(SupplementLog.user_id == current_user.id, SupplementLog.logged_date == today)
+        .all()
+    )
+    log_map = {log.supplement_id: log for log in today_logs}
+    
+    results = []
+    for s in active_supps:
+        log = log_map.get(s.id)
+        results.append(
+            SupplementTodayResponse(
+                id=s.id,
+                name=s.name,
+                dosage=s.dosage,
+                schedule_time=s.schedule_time,
+                taken=log.taken == 1 if log else False,
+                log_id=log.id if log else None
+            )
+        )
+    return results
+
+@app.post("/supplements/{supplement_id}/toggle", response_model=SupplementTodayResponse)
+def toggle_supplement_status(
+    supplement_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    today = date.today()
+    supplement = (
+        db.query(Supplement)
+        .filter(Supplement.id == supplement_id, Supplement.user_id == current_user.id)
+        .first()
+    )
+    if not supplement:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Supplement not found")
+        
+    log = (
+        db.query(SupplementLog)
+        .filter(SupplementLog.supplement_id == supplement_id, SupplementLog.logged_date == today)
+        .first()
+    )
+    
+    if log:
+        log.taken = 1 if log.taken == 0 else 0
+        db.commit()
+        db.refresh(log)
+    else:
+        log = SupplementLog(
+            supplement_id=supplement_id,
+            user_id=current_user.id,
+            logged_date=today,
+            taken=1
+        )
+        db.add(log)
+        db.commit()
+        db.refresh(log)
+        
+    return SupplementTodayResponse(
+        id=supplement.id,
+        name=supplement.name,
+        dosage=supplement.dosage,
+        schedule_time=supplement.schedule_time,
+        taken=log.taken == 1,
+        log_id=log.id
+    )
 
 # Vitals Endpoints
 @app.post("/vitals", response_model=VitalLogResponse, status_code=status.HTTP_201_CREATED)
