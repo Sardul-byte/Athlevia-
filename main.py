@@ -137,11 +137,22 @@ class UserProfileResponse(BaseModel):
     user_id: UUID
     daily_calorie_goal: int
     daily_water_goal_ml: int
+    points: int
+    streak_days: int
     created_at: datetime
     updated_at: datetime
 
     class Config:
         from_attributes = True
+
+class ClaimPointsRequest(BaseModel):
+    amount: int
+    reason: str
+
+class RedeemRewardRequest(BaseModel):
+    points: int
+    reward_id: str
+
 
 # Auth Endpoints
 @app.post("/auth/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
@@ -173,6 +184,14 @@ def read_current_user(current_user: User = Depends(get_current_user)):
     return current_user
 
 # User Profile Endpoints
+def reward_user_points(user_id: UUID, amount: int, db: Session):
+    profile = db.query(UserProfile).filter(UserProfile.user_id == user_id).first()
+    if not profile:
+        profile = UserProfile(user_id=user_id, daily_calorie_goal=2000, daily_water_goal_ml=2000)
+        db.add(profile)
+    profile.points += amount
+
+# User Profile Route Handlers
 @app.get("/profiles/me", response_model=UserProfileResponse)
 def get_user_profile(
     current_user: User = Depends(get_current_user),
@@ -204,6 +223,41 @@ def update_user_profile(
     db.commit()
     db.refresh(profile)
     return profile
+
+@app.post("/profiles/me/claim-points", response_model=UserProfileResponse)
+def claim_points(
+    request_data: ClaimPointsRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    profile = db.query(UserProfile).filter(UserProfile.user_id == current_user.id).first()
+    if not profile:
+        profile = UserProfile(user_id=current_user.id, daily_calorie_goal=2000, daily_water_goal_ml=2000)
+        db.add(profile)
+    profile.points += request_data.amount
+    db.commit()
+    db.refresh(profile)
+    return profile
+
+@app.post("/profiles/me/redeem-reward", response_model=UserProfileResponse)
+def redeem_reward(
+    request_data: RedeemRewardRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    profile = db.query(UserProfile).filter(UserProfile.user_id == current_user.id).first()
+    if not profile:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
+    if profile.points < request_data.points:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Insufficient points to redeem this reward.",
+        )
+    profile.points -= request_data.points
+    db.commit()
+    db.refresh(profile)
+    return profile
+
 
 class VitalLogCreate(BaseModel):
     weight_kg: Optional[float] = None
@@ -261,6 +315,7 @@ def log_workout(
 ):
     record = Workout(user_id=current_user.id, **workout.model_dump())
     db.add(record)
+    reward_user_points(current_user.id, 50, db)
     db.commit()
     db.refresh(record)
     return record
@@ -400,6 +455,7 @@ def finish_workout_session(
         logged_at=session.completed_at
     )
     db.add(workout_log)
+    reward_user_points(current_user.id, 100, db)
     db.commit()
     db.refresh(session)
     return session
@@ -502,6 +558,8 @@ def toggle_supplement_status(
     
     if log:
         log.taken = 1 if log.taken == 0 else 0
+        if log.taken == 1:
+            reward_user_points(current_user.id, 10, db)
         db.commit()
         db.refresh(log)
     else:
@@ -512,6 +570,7 @@ def toggle_supplement_status(
             taken=1
         )
         db.add(log)
+        reward_user_points(current_user.id, 10, db)
         db.commit()
         db.refresh(log)
         
@@ -533,6 +592,7 @@ def log_vitals(
 ):
     record = VitalLog(user_id=current_user.id, **vitals.model_dump())
     db.add(record)
+    reward_user_points(current_user.id, 20, db)
     db.commit()
     db.refresh(record)
     return record
@@ -558,6 +618,8 @@ def log_nutrition(
 ):
     record = NutritionLog(user_id=current_user.id, **entry.model_dump())
     db.add(record)
+    pts = 5 if entry.food_name.lower() == 'water' else 15
+    reward_user_points(current_user.id, pts, db)
     db.commit()
     db.refresh(record)
     return record
