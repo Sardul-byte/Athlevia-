@@ -7,7 +7,7 @@ from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://postgres:postgres@localhost:5432/athlevia",
+    "sqlite:///athlevia.db",
 )
 
 # SQLite (used for local demos/tests) needs check_same_thread disabled
