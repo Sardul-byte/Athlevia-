@@ -36,6 +36,7 @@ class User(Base):
     )
     profile = relationship("UserProfile", uselist=False, back_populates="user", cascade="all, delete-orphan")
     blood_reports = relationship("BloodReport", back_populates="user", cascade="all, delete-orphan")
+    workout_sessions = relationship("WorkoutSession", back_populates="user", cascade="all, delete-orphan")
 
 
 
@@ -113,4 +114,35 @@ class BloodReport(Base):
     logged_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", back_populates="blood_reports")
+
+
+class WorkoutSession(Base):
+    __tablename__ = "workout_sessions"
+
+    id = Column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id = Column(Uuid, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(255), nullable=False)
+    status = Column(String(50), default="active", nullable=False)  # 'active', 'completed'
+    started_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    duration_minutes = Column(Integer, default=0, nullable=False)
+    calories_burned = Column(Integer, default=0, nullable=False)
+
+    user = relationship("User", back_populates="workout_sessions")
+    sets = relationship("WorkoutSet", back_populates="session", cascade="all, delete-orphan")
+
+
+class WorkoutSet(Base):
+    __tablename__ = "workout_sets"
+
+    id = Column(Uuid, primary_key=True, default=uuid.uuid4)
+    session_id = Column(Uuid, ForeignKey("workout_sessions.id", ondelete="CASCADE"), nullable=False)
+    exercise_name = Column(String(255), nullable=False)
+    set_number = Column(Integer, nullable=False)
+    weight_kg = Column(DECIMAL(6, 2), nullable=True)
+    reps = Column(Integer, nullable=True)
+    completed = Column(Integer, default=0, nullable=False)  # SQLite compatibility (0=no, 1=yes)
+    logged_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    session = relationship("WorkoutSession", back_populates="sets")
 

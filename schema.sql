@@ -68,4 +68,29 @@ CREATE TABLE blood_reports (
     logged_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Workout Sessions Table
+CREATE TABLE workout_sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'active',
+    started_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    duration_minutes INT NOT NULL DEFAULT 0,
+    calories_burned INT NOT NULL DEFAULT 0
+);
+
+-- Workout Sets Table
+CREATE TABLE workout_sets (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id UUID NOT NULL REFERENCES workout_sessions(id) ON DELETE CASCADE,
+    exercise_name VARCHAR(255) NOT NULL,
+    set_number INT NOT NULL,
+    weight_kg DECIMAL(6,2),
+    reps INT,
+    completed INT NOT NULL DEFAULT 0,
+    logged_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+
 
