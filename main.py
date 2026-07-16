@@ -9,7 +9,7 @@ from datetime import datetime, date
 from uuid import UUID
 
 from database import get_db
-from models import NutritionLog, User, VitalLog, Workout, UserProfile, BloodReport
+from models import NutritionLog, User, VitalLog, Workout, UserProfile, BloodReport, WorkoutSession, WorkoutSet
 from security import create_access_token, get_current_user, hash_password, verify_password
 
 app = FastAPI(
@@ -53,6 +53,44 @@ class WorkoutResponse(WorkoutCreate):
 
     class Config:
         from_attributes = True
+
+class WorkoutSessionCreate(BaseModel):
+    name: str
+
+class WorkoutSetCreate(BaseModel):
+    exercise_name: str
+    set_number: int
+    weight_kg: Optional[float] = None
+    reps: Optional[int] = None
+    completed: Optional[int] = 0
+
+class WorkoutSetResponse(WorkoutSetCreate):
+    id: UUID
+    session_id: UUID
+    logged_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class WorkoutSessionResponse(BaseModel):
+    id: UUID
+    user_id: UUID
+    name: str
+    status: str
+    started_at: datetime
+    completed_at: Optional[datetime] = None
+    duration_minutes: int
+    calories_burned: int
+    sets: List[WorkoutSetResponse] = []
+
+    class Config:
+        from_attributes = True
+
+class WorkoutSessionFinish(BaseModel):
+    duration_minutes: int
+    calories_burned: int
+    category: str
+
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -222,6 +260,117 @@ def delete_workout(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workout not found")
     db.delete(record)
     db.commit()
+
+# Workout Session Endpoints
+@app.get("/workouts/sessions/active", response_model=Optional[WorkoutSessionResponse])
+def get_active_workout_session(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return (
+        db.query(WorkoutSession)
+        .filter(WorkoutSession.user_id == current_user.id, WorkoutSession.status == "active")
+        .first()
+    )
+
+@app.post("/workouts/sessions/start", response_model=WorkoutSessionResponse, status_code=status.HTTP_201_CREATED)
+def start_workout_session(
+    session_data: WorkoutSessionCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    active = (
+        db.query(WorkoutSession)
+        .filter(WorkoutSession.user_id == current_user.id, WorkoutSession.status == "active")
+        .first()
+    )
+    if active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You already have an active workout session. Finish or cancel it first.",
+        )
+    
+    new_session = WorkoutSession(user_id=current_user.id, name=session_data.name)
+    db.add(new_session)
+    db.commit()
+    db.refresh(new_session)
+    return new_session
+
+@app.post("/workouts/sessions/{session_id}/sets", response_model=WorkoutSetResponse, status_code=status.HTTP_201_CREATED)
+def add_workout_set(
+    session_id: UUID,
+    set_data: WorkoutSetCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    session = (
+        db.query(WorkoutSession)
+        .filter(WorkoutSession.id == session_id, WorkoutSession.user_id == current_user.id)
+        .first()
+    )
+    if not session:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workout session not found")
+    if session.status != "active":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot add sets to a completed session")
+    
+    new_set = WorkoutSet(session_id=session_id, **set_data.model_dump())
+    db.add(new_set)
+    db.commit()
+    db.refresh(new_set)
+    return new_set
+
+@app.delete("/workouts/sets/{set_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_workout_set(
+    set_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    record = (
+        db.query(WorkoutSet)
+        .join(WorkoutSession)
+        .filter(WorkoutSet.id == set_id, WorkoutSession.user_id == current_user.id)
+        .first()
+    )
+    if not record:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workout set not found")
+    
+    db.delete(record)
+    db.commit()
+
+@app.post("/workouts/sessions/{session_id}/finish", response_model=WorkoutSessionResponse)
+def finish_workout_session(
+    session_id: UUID,
+    finish_data: WorkoutSessionFinish,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    session = (
+        db.query(WorkoutSession)
+        .filter(WorkoutSession.id == session_id, WorkoutSession.user_id == current_user.id)
+        .first()
+    )
+    if not session:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workout session not found")
+    if session.status != "active":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Session is already finished")
+    
+    session.status = "completed"
+    session.completed_at = datetime.utcnow()
+    session.duration_minutes = finish_data.duration_minutes
+    session.calories_burned = finish_data.calories_burned
+    
+    workout_log = Workout(
+        user_id=current_user.id,
+        name=session.name,
+        category=finish_data.category,
+        duration_minutes=finish_data.duration_minutes,
+        calories_burned=finish_data.calories_burned,
+        logged_at=session.completed_at
+    )
+    db.add(workout_log)
+    db.commit()
+    db.refresh(session)
+    return session
 
 # Vitals Endpoints
 @app.post("/vitals", response_model=VitalLogResponse, status_code=status.HTTP_201_CREATED)
