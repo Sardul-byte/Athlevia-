@@ -1,5 +1,5 @@
-import { useCallback, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 
@@ -11,6 +11,13 @@ import { useTheme } from '@/hooks/use-theme';
 import { api, type NutritionLog, type Workout, type UserProfile } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { readCache, writeCache } from '@/lib/cache';
+import { useCustomTheme, type ThemeName } from '@/lib/theme-context';
+
+const SHOP_ITEMS = [
+  { id: 'cyberpunk', name: 'Cyberpunk Neon 💜', cost: 100, description: 'Vibrant neon purple background with pink accents' },
+  { id: 'emerald', name: 'Emerald Forest 💚', cost: 150, description: 'Classy dark emerald green styling' },
+  { id: 'rosegold', name: 'Rose Gold 🍑', cost: 200, description: 'Warm dark maroon and peach palette' },
+];
 
 function isToday(iso: string) {
   const date = new Date(iso);
@@ -39,6 +46,7 @@ function StatCard({ label, value, unit }: { label: string; value: number; unit: 
 export default function HomeScreen() {
   const { user, signOut } = useAuth();
   const theme = useTheme();
+  const { themeName, setThemeName } = useCustomTheme();
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [nutrition, setNutrition] = useState<NutritionLog[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -49,6 +57,9 @@ export default function HomeScreen() {
   const [calorieGoalInput, setCalorieGoalInput] = useState('');
   const [waterGoalInput, setWaterGoalInput] = useState('');
   const [savingGoals, setSavingGoals] = useState(false);
+
+  // Store / Themes state
+  const [unlockedThemes, setUnlockedThemes] = useState<string[]>(['dark', 'light']);
 
   const applyProfile = useCallback((p: UserProfile) => {
     setProfile(p);
@@ -88,6 +99,15 @@ export default function HomeScreen() {
     }, [load]),
   );
 
+  // Load unlocked themes cache
+  useEffect(() => {
+    (async () => {
+      const saved = await readCache<string[]>('unlocked_themes');
+      if (saved) setUnlockedThemes(saved);
+      else writeCache('unlocked_themes', ['dark', 'light']);
+    })();
+  }, []);
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await load();
@@ -113,6 +133,24 @@ export default function HomeScreen() {
     } finally {
       setSavingGoals(false);
     }
+  };
+
+  const buyTheme = async (id: string, cost: number) => {
+    if (!profile) return;
+    try {
+      const updatedProfile = await api.redeemReward(cost, id);
+      setProfile(updatedProfile);
+      const list = [...unlockedThemes, id];
+      setUnlockedThemes(list);
+      writeCache('unlocked_themes', list);
+      Alert.alert('Success 🎉', `You have unlocked the ${id.toUpperCase()} theme!`);
+    } catch (e) {
+      Alert.alert('Error', e instanceof Error ? e.message : 'Could not redeem reward');
+    }
+  };
+
+  const applyTheme = (id: ThemeName) => {
+    setThemeName(id);
   };
 
   const todayWorkouts = workouts.filter((w) => isToday(w.logged_at));
@@ -233,6 +271,84 @@ export default function HomeScreen() {
             </ThemedView>
           )}
 
+          {/* Gamified Points Status */}
+          {profile && (
+            <ThemedView type="backgroundElement" style={styles.pointsCard}>
+              <ThemedView style={styles.pointsHeader}>
+                <ThemedText type="smallBold" themeColor="textSecondary">
+                  GAMIFIED REWARDS
+                </ThemedText>
+                <ThemedText type="subtitle" themeColor="tint">
+                  {profile.points} Points · {profile.streak_days || 1} Day Streak 🔥
+                </ThemedText>
+              </ThemedView>
+              <ThemedText type="small" themeColor="textSecondary">
+                Log activities to collect points: Workouts (+50 Pts), Active Sessions (+100 Pts), Vitals (+20 Pts), Meals (+15 Pts), Hydration (+5 Pts), Supplements (+10 Pts).
+              </ThemedText>
+            </ThemedView>
+          )}
+
+          {/* Perks Shop */}
+          <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionTitle}>
+            REDEEM PERKS & THEMES SHOP
+          </ThemedText>
+          <ThemedView type="backgroundElement" style={styles.shopCard}>
+            {SHOP_ITEMS.map((item) => {
+              const isUnlocked = unlockedThemes.includes(item.id);
+              const isApplied = themeName === item.id;
+              const canAfford = profile ? profile.points >= item.cost : false;
+
+              return (
+                <ThemedView key={item.id} style={styles.shopItemRow}>
+                  <ThemedView style={{ backgroundColor: 'transparent', flex: 1, gap: 2 }}>
+                    <ThemedText type="smallBold">{item.name}</ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary" style={{ fontSize: 11 }}>
+                      {item.description}
+                    </ThemedText>
+                  </ThemedView>
+
+                  {isUnlocked ? (
+                    <Pressable
+                      onPress={() => applyTheme(item.id as ThemeName)}
+                      style={[
+                        styles.shopButton,
+                        { backgroundColor: isApplied ? theme.backgroundSelected : theme.tint }
+                      ]}>
+                      <ThemedText type="smallBold" style={{ color: isApplied ? theme.text : '#fff', fontSize: 12 }}>
+                        {isApplied ? 'Applied' : 'Apply'}
+                      </ThemedText>
+                    </Pressable>
+                  ) : (
+                    <Pressable
+                      onPress={() => buyTheme(item.id, item.cost)}
+                      disabled={!canAfford}
+                      style={[
+                        styles.shopButton,
+                        { backgroundColor: canAfford ? '#10B981' : 'rgba(255,255,255,0.06)' }
+                      ]}>
+                      <ThemedText type="smallBold" style={{ color: canAfford ? '#fff' : theme.textSecondary, fontSize: 12 }}>
+                        Redeem {item.cost}
+                      </ThemedText>
+                    </Pressable>
+                  )}
+                </ThemedView>
+              );
+            })}
+            
+            {/* Standard theme toggles */}
+            <ThemedView style={styles.standardThemesRow}>
+              <ThemedText type="smallBold" themeColor="textSecondary">Default Themes:</ThemedText>
+              <ThemedView style={styles.standardThemesButtons}>
+                <Pressable onPress={() => applyTheme('dark')} style={[styles.standardThemeBtn, themeName === 'dark' && { borderColor: theme.tint, borderWidth: 1 }]}>
+                  <ThemedText type="small">Dark</ThemedText>
+                </Pressable>
+                <Pressable onPress={() => applyTheme('light')} style={[styles.standardThemeBtn, themeName === 'light' && { borderColor: theme.tint, borderWidth: 1 }]}>
+                  <ThemedText type="small">Light</ThemedText>
+                </Pressable>
+              </ThemedView>
+            </ThemedView>
+          </ThemedView>
+
           <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionTitle}>
             RECENT WORKOUTS
           </ThemedText>
@@ -248,7 +364,7 @@ export default function HomeScreen() {
                 <ThemedView style={styles.listRowText}>
                   <ThemedText type="smallBold">{w.name}</ThemedText>
                   <ThemedText type="small" themeColor="textSecondary">
-                    {w.category} · {w.duration_minutes} min
+                    {w.category.toUpperCase()} · {w.duration_minutes} min
                     {w.calories_burned ? ` · ${w.calories_burned} kcal` : ''}
                   </ThemedText>
                 </ThemedView>
@@ -359,5 +475,56 @@ const styles = StyleSheet.create({
   progressBarFill: {
     height: '100%',
     borderRadius: 4,
+  },
+  // Gamification & Shop Styles
+  pointsCard: {
+    borderRadius: Spacing.three,
+    padding: Spacing.three,
+    gap: Spacing.two,
+  },
+  pointsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+  },
+  shopCard: {
+    borderRadius: Spacing.three,
+    padding: Spacing.three,
+    gap: Spacing.three,
+  },
+  shopItemRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.05)',
+    paddingBottom: Spacing.two,
+    backgroundColor: 'transparent',
+  },
+  shopButton: {
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    borderRadius: Spacing.two,
+    minWidth: 90,
+    alignItems: 'center',
+  },
+  standardThemesRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    marginTop: Spacing.one,
+  },
+  standardThemesButtons: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+    backgroundColor: 'transparent',
+  },
+  standardThemeBtn: {
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.one,
+    borderRadius: Spacing.four,
+    backgroundColor: 'rgba(255,255,255,0.05)',
   },
 });

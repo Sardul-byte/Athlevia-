@@ -8,6 +8,8 @@ import { AuthScreen } from '@/components/auth-screen';
 import { ThemedView } from '@/components/themed-view';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 
+import { CustomThemeProvider } from '@/lib/theme-context';
+
 SplashScreen.preventAutoHideAsync();
 
 function AuthGate() {
@@ -29,11 +31,13 @@ function AuthGate() {
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AuthProvider>
-        <AnimatedSplashOverlay />
-        <AuthGate />
-      </AuthProvider>
-    </ThemeProvider>
+    <CustomThemeProvider>
+      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <AuthProvider>
+          <AnimatedSplashOverlay />
+          <AuthGate />
+        </AuthProvider>
+      </ThemeProvider>
+    </CustomThemeProvider>
   );
 }

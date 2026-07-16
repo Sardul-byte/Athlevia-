@@ -26,6 +26,33 @@ export const Colors = {
     tint: '#2DD4BF',
     tintSoft: '#134E4A',
   },
+  cyberpunk: {
+    text: '#0FF0FC',
+    background: '#1A002C',
+    backgroundElement: '#2D004D',
+    backgroundSelected: '#440073',
+    textSecondary: '#FF007F',
+    tint: '#FF007F',
+    tintSoft: '#2D004D',
+  },
+  emerald: {
+    text: '#ECFDF5',
+    background: '#022C22',
+    backgroundElement: '#064E3B',
+    backgroundSelected: '#0F766E',
+    textSecondary: '#A7F3D0',
+    tint: '#10B981',
+    tintSoft: '#042F2E',
+  },
+  rosegold: {
+    text: '#FFF5F5',
+    background: '#2D1B1B',
+    backgroundElement: '#4A2828',
+    backgroundSelected: '#6E3B3B',
+    textSecondary: '#FFD3D3',
+    tint: '#FCA5A5',
+    tintSoft: '#3F1A1A',
+  },
 } as const;
 
 export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
