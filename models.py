@@ -37,6 +37,9 @@ class User(Base):
     profile = relationship("UserProfile", uselist=False, back_populates="user", cascade="all, delete-orphan")
     blood_reports = relationship("BloodReport", back_populates="user", cascade="all, delete-orphan")
     workout_sessions = relationship("WorkoutSession", back_populates="user", cascade="all, delete-orphan")
+    supplements = relationship("Supplement", back_populates="user", cascade="all, delete-orphan")
+    supplement_logs = relationship("SupplementLog", back_populates="user", cascade="all, delete-orphan")
+
 
 
 
@@ -145,4 +148,33 @@ class WorkoutSet(Base):
     logged_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     session = relationship("WorkoutSession", back_populates="sets")
+
+
+class Supplement(Base):
+    __tablename__ = "supplements"
+
+    id = Column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id = Column(Uuid, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(255), nullable=False)
+    dosage = Column(String(100), nullable=True)  # e.g., "5g", "1 capsule"
+    schedule_time = Column(String(50), nullable=True)  # e.g., "08:00", "Morning"
+    active = Column(Integer, default=1, nullable=False)  # 1=active, 0=inactive
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    user = relationship("User", back_populates="supplements")
+    logs = relationship("SupplementLog", back_populates="supplement", cascade="all, delete-orphan")
+
+
+class SupplementLog(Base):
+    __tablename__ = "supplement_logs"
+
+    id = Column(Uuid, primary_key=True, default=uuid.uuid4)
+    supplement_id = Column(Uuid, ForeignKey("supplements.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Uuid, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    logged_date = Column(Date, nullable=False)
+    taken = Column(Integer, default=1, nullable=False)  # 1=taken, 0=untaken
+
+    supplement = relationship("Supplement", back_populates="logs")
+    user = relationship("User", back_populates="supplement_logs")
+
 

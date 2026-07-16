@@ -92,5 +92,26 @@ CREATE TABLE workout_sets (
     logged_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Supplements Table
+CREATE TABLE supplements (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    dosage VARCHAR(100),
+    schedule_time VARCHAR(50),
+    active INT NOT NULL DEFAULT 1,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Supplement Logs Table
+CREATE TABLE supplement_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    supplement_id UUID NOT NULL REFERENCES supplements(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    logged_date DATE NOT NULL,
+    taken INT NOT NULL DEFAULT 1
+);
+
+
 
 
