@@ -1,5 +1,5 @@
-import { useCallback, useState } from 'react';
-import { Alert, FlatList, Platform, Pressable, RefreshControl, StyleSheet } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { Alert, FlatList, Platform, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 
@@ -8,7 +8,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing, TopTabInset } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { api, type Workout } from '@/lib/api';
+import { api, type Workout, type WorkoutSession, type WorkoutSet } from '@/lib/api';
 import { readCache, writeCache } from '@/lib/cache';
 
 const CATEGORIES = ['strength', 'cardio', 'swimming', 'sports', 'other'] as const;
@@ -16,23 +16,45 @@ const CATEGORIES = ['strength', 'cardio', 'swimming', 'sports', 'other'] as cons
 export default function WorkoutsScreen() {
   const theme = useTheme();
   const [workouts, setWorkouts] = useState<Workout[]>([]);
+  
+  // Quick Log form states
   const [name, setName] = useState('');
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>('strength');
   const [duration, setDuration] = useState('');
   const [calories, setCalories] = useState('');
-  const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // Active Session states
+  const [activeSession, setActiveSession] = useState<WorkoutSession | null>(null);
+  const [elapsedTime, setElapsedTime] = useState('00:00:00');
+  const [sessionNameInput, setSessionNameInput] = useState('');
+  const [startingSession, setStartingSession] = useState(false);
+  const [newExerciseName, setNewExerciseName] = useState('');
+  const [setInputWeight, setSetInputWeight] = useState<{ [exName: string]: string }>({});
+  const [setInputReps, setSetInputReps] = useState<{ [exName: string]: string }>({});
+  const [savingSet, setSavingSet] = useState<{ [exName: string]: boolean }>({});
+  const [finishCategory, setFinishCategory] = useState<'strength' | 'cardio' | 'swimming' | 'sports'>('strength');
+  const [finishCalories, setFinishCalories] = useState('');
+  const [finishingSession, setFinishingSession] = useState(false);
+
+  const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const fresh = await api.getWorkouts();
-      setWorkouts(fresh);
-      writeCache('workouts', fresh);
+      const [freshWorkouts, active] = await Promise.all([
+        api.getWorkouts(),
+        api.getActiveWorkoutSession(),
+      ]);
+      setWorkouts(freshWorkouts);
+      setActiveSession(active);
+      writeCache('workouts', freshWorkouts);
+      if (active) writeCache('active_session', active);
     } catch {
-      // Backend unreachable; fall back to the last cached snapshot.
-      const cached = await readCache<Workout[]>('workouts');
-      if (cached) setWorkouts(cached);
+      const cachedWorkouts = await readCache<Workout[]>('workouts');
+      const cachedActive = await readCache<WorkoutSession>('active_session');
+      if (cachedWorkouts) setWorkouts(cachedWorkouts);
+      if (cachedActive) setActiveSession(cachedActive);
     }
   }, []);
 
@@ -48,7 +70,23 @@ export default function WorkoutsScreen() {
     setRefreshing(false);
   }, [load]);
 
-  const submit = async () => {
+  // Live Timer Effect
+  useEffect(() => {
+    if (!activeSession) return;
+    const interval = setInterval(() => {
+      const start = new Date(activeSession.started_at).getTime();
+      const elapsedMs = Date.now() - start;
+      const elapsedSec = Math.max(0, Math.floor(elapsedMs / 1000));
+      const h = Math.floor(elapsedSec / 3600).toString().padStart(2, '0');
+      const m = Math.floor((elapsedSec % 3600) / 60).toString().padStart(2, '0');
+      const s = (elapsedSec % 60).toString().padStart(2, '0');
+      setElapsedTime(`${h}:${m}:${s}`);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [activeSession]);
+
+  // Quick Log Past Workout Submit
+  const submitQuickLog = async () => {
     const minutes = parseInt(duration, 10);
     if (!name.trim() || !Number.isFinite(minutes) || minutes <= 0) {
       setError('Enter a workout name and a duration in minutes.');
@@ -75,7 +113,96 @@ export default function WorkoutsScreen() {
     }
   };
 
-  const remove = (workout: Workout) => {
+  // Active Session Actions
+  const startSession = async () => {
+    const sName = sessionNameInput.trim() || 'Daily Gym Session';
+    setError(null);
+    setStartingSession(true);
+    try {
+      const session = await api.startWorkoutSession(sName);
+      setActiveSession(session);
+      setSessionNameInput('');
+      writeCache('active_session', session);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not start session');
+    } finally {
+      setStartingSession(false);
+    }
+  };
+
+  const addSet = async (exName: string) => {
+    if (!activeSession) return;
+    const wt = parseFloat(setInputWeight[exName] || '');
+    const reps = parseInt(setInputReps[exName] || '', 10);
+    if (!exName.trim() || !Number.isFinite(reps) || reps <= 0) {
+      setError('Enter valid reps to add a set.');
+      return;
+    }
+    setError(null);
+    setSavingSet((prev) => ({ ...prev, [exName]: true }));
+    try {
+      const existingSets = activeSession.sets.filter((s) => s.exercise_name === exName);
+      const setNum = existingSets.length + 1;
+      await api.addWorkoutSet(activeSession.id, {
+        exercise_name: exName,
+        set_number: setNum,
+        weight_kg: Number.isFinite(wt) ? wt : undefined,
+        reps,
+      });
+      
+      setSetInputWeight((prev) => ({ ...prev, [exName]: '' }));
+      setSetInputReps((prev) => ({ ...prev, [exName]: '' }));
+      
+      const refreshed = await api.getActiveWorkoutSession();
+      setActiveSession(refreshed);
+      if (refreshed) writeCache('active_session', refreshed);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save set');
+    } finally {
+      setSavingSet((prev) => ({ ...prev, [exName]: false }));
+    }
+  };
+
+  const deleteSet = async (setId: string) => {
+    setError(null);
+    try {
+      await api.deleteWorkoutSet(setId);
+      const refreshed = await api.getActiveWorkoutSession();
+      setActiveSession(refreshed);
+      if (refreshed) writeCache('active_session', refreshed);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not delete set');
+    }
+  };
+
+  const finishSession = async () => {
+    if (!activeSession) return;
+    setFinishingSession(true);
+    setError(null);
+    try {
+      const start = new Date(activeSession.started_at).getTime();
+      const elapsedMinutes = Math.max(1, Math.round((Date.now() - start) / 60000));
+      const kcal = parseInt(finishCalories, 10) || elapsedMinutes * 6; // default 6 kcal/min
+
+      await api.finishWorkoutSession(activeSession.id, {
+        duration_minutes: elapsedMinutes,
+        calories_burned: kcal,
+        category: finishCategory,
+      });
+
+      setActiveSession(null);
+      setFinishCalories('');
+      writeCache('active_session', null);
+      await load();
+      Alert.alert('Success', 'Workout completed! You earned +100 Points! 🎉');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not finish workout session');
+    } finally {
+      setFinishingSession(false);
+    }
+  };
+
+  const removeWorkout = (workout: Workout) => {
     const doDelete = async () => {
       try {
         await api.deleteWorkout(workout.id);
@@ -88,55 +215,222 @@ export default function WorkoutsScreen() {
       doDelete();
       return;
     }
-    Alert.alert('Delete workout', `Remove "${workout.name}" from your history?`, [
+    Alert.alert('Delete workout', `Remove "${workout.name}" from history?`, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: doDelete },
     ]);
   };
 
-  const form = (
-    <ThemedView style={styles.form}>
-      <ThemedText type="subtitle">Workouts</ThemedText>
+  // Group active session sets by exercise name
+  const groupedSets: { [name: string]: WorkoutSet[] } = {};
+  const exerciseNames: string[] = [];
+  if (activeSession) {
+    for (const set of activeSession.sets) {
+      if (!groupedSets[set.exercise_name]) {
+        groupedSets[set.exercise_name] = [];
+        exerciseNames.push(set.exercise_name);
+      }
+      groupedSets[set.exercise_name].push(set);
+    }
+  }
 
-      <LabeledInput
-        label="Workout name"
-        value={name}
-        onChangeText={setName}
-        placeholder="e.g. Push day, 5k run"
-      />
+  const handleAddNewExercise = () => {
+    const name = newExerciseName.trim();
+    if (!name) return;
+    if (!exerciseNames.includes(name)) {
+      groupedSets[name] = [];
+      exerciseNames.push(name);
+    }
+    setNewExerciseName('');
+  };
 
-      <ThemedView style={styles.categoryRow}>
-        {CATEGORIES.map((c) => (
-          <Pressable key={c} onPress={() => setCategory(c)}>
-            <ThemedView
-              type={category === c ? 'backgroundSelected' : 'backgroundElement'}
-              style={[styles.chip, category === c && { borderColor: theme.tint, borderWidth: 1 }]}>
-              <ThemedText type="small">{c}</ThemedText>
+  // Header/Form layout
+  const headerContent = (
+    <ThemedView style={styles.formContainer}>
+      <ThemedText type="subtitle">Fitness Workouts</ThemedText>
+
+      {/* Active Workout Session Section */}
+      {activeSession ? (
+        <ThemedView type="backgroundElement" style={styles.activeSessionCard}>
+          <ThemedView style={styles.activeHeader}>
+            <ThemedView style={styles.activeTitleRow}>
+              <ThemedView style={styles.pulseDot} />
+              <ThemedText type="smallBold" themeColor="tint">ACTIVE WORKOUT</ThemedText>
             </ThemedView>
-          </Pressable>
-        ))}
-      </ThemedView>
+            <ThemedText type="subtitle" style={styles.timerText}>{elapsedTime}</ThemedText>
+          </ThemedView>
+          
+          <ThemedText type="smallBold" style={styles.sessionNameLabel}>
+            Name: {activeSession.name}
+          </ThemedText>
 
-      <ThemedView style={styles.inlineFields}>
-        <ThemedView style={styles.inlineField}>
-          <LabeledInput
-            label="Duration (min)"
-            value={duration}
-            onChangeText={setDuration}
-            keyboardType="number-pad"
-            placeholder="45"
-          />
+          {/* Exercise Log list */}
+          {exerciseNames.length === 0 ? (
+            <ThemedView style={styles.activeSessionEmpty}>
+              <ThemedText type="small" themeColor="textSecondary">
+                No exercises added yet. Type an exercise name below to start tracking.
+              </ThemedText>
+            </ThemedView>
+          ) : (
+            exerciseNames.map((exName) => (
+              <ThemedView key={exName} type="backgroundSelected" style={styles.exerciseCard}>
+                <ThemedText type="smallBold" themeColor="tint">{exName}</ThemedText>
+                
+                {/* Sets listed */}
+                {groupedSets[exName].length > 0 && (
+                  <ThemedView style={styles.setsList}>
+                    {groupedSets[exName].map((s) => (
+                      <ThemedView key={s.id} style={styles.setRow}>
+                        <ThemedText type="small">
+                          Set {s.set_number}: {s.reps} reps {s.weight_kg ? `· ${s.weight_kg} kg` : ''}
+                        </ThemedText>
+                        <Pressable onPress={() => deleteSet(s.id)}>
+                          <ThemedText type="small" style={{ color: '#EF4444' }}>Remove</ThemedText>
+                        </Pressable>
+                      </ThemedView>
+                    ))}
+                  </ThemedView>
+                )}
+
+                {/* Add new set inputs */}
+                <ThemedView style={styles.setInputsRow}>
+                  <ThemedView style={{ flex: 1 }}>
+                    <LabeledInput
+                      label="Weight (kg)"
+                      value={setInputWeight[exName] || ''}
+                      onChangeText={(val) => setSetInputWeight((prev) => ({ ...prev, [exName]: val }))}
+                      keyboardType="decimal-pad"
+                      placeholder="0.0"
+                    />
+                  </ThemedView>
+                  <ThemedView style={{ flex: 1 }}>
+                    <LabeledInput
+                      label="Reps"
+                      value={setInputReps[exName] || ''}
+                      onChangeText={(val) => setSetInputReps((prev) => ({ ...prev, [exName]: val }))}
+                      keyboardType="number-pad"
+                      placeholder="10"
+                    />
+                  </ThemedView>
+                  <Pressable 
+                    onPress={() => addSet(exName)} 
+                    style={[styles.addSetButton, { backgroundColor: theme.tint }]}>
+                    <ThemedText type="smallBold" style={{ color: '#fff' }}>+ Set</ThemedText>
+                  </Pressable>
+                </ThemedView>
+              </ThemedView>
+            ))
+          )}
+
+          {/* Add New Exercise control */}
+          <ThemedView style={styles.addExerciseRow}>
+            <ThemedView style={{ flex: 1 }}>
+              <LabeledInput
+                label="New Exercise Name"
+                value={newExerciseName}
+                onChangeText={setNewExerciseName}
+                placeholder="e.g. Bench Press, Squat"
+              />
+            </ThemedView>
+            <Pressable 
+              onPress={handleAddNewExercise} 
+              style={[styles.addExerciseButton, { backgroundColor: theme.backgroundSelected }]}>
+              <ThemedText type="smallBold" themeColor="text">+ Add</ThemedText>
+            </Pressable>
+          </ThemedView>
+
+          {/* Finish Workout Section */}
+          <ThemedView style={styles.finishSection}>
+            <ThemedText type="smallBold">FINISH SESSION</ThemedText>
+            <ThemedView style={styles.categoryRow}>
+              {(['strength', 'cardio', 'swimming', 'sports'] as const).map((c) => (
+                <Pressable key={c} onPress={() => setFinishCategory(c)}>
+                  <ThemedView
+                    type={finishCategory === c ? 'backgroundSelected' : 'backgroundElement'}
+                    style={[styles.chip, finishCategory === c && { borderColor: theme.tint, borderWidth: 1 }]}>
+                    <ThemedText type="small">{c}</ThemedText>
+                  </ThemedView>
+                </Pressable>
+              ))}
+            </ThemedView>
+            <LabeledInput
+              label="Calories Burned (Estimated)"
+              value={finishCalories}
+              onChangeText={setFinishCalories}
+              keyboardType="number-pad"
+              placeholder="e.g. 350"
+            />
+            <PrimaryButton title="Complete Workout & Claim 100 Pts" onPress={finishSession} loading={finishingSession} />
+          </ThemedView>
         </ThemedView>
-        <ThemedView style={styles.inlineField}>
-          <LabeledInput
-            label="Calories (optional)"
-            value={calories}
-            onChangeText={setCalories}
-            keyboardType="number-pad"
-            placeholder="300"
-          />
+      ) : (
+        <ThemedView type="backgroundElement" style={styles.sessionStartCard}>
+          <ThemedText type="smallBold">START WORKOUT SESSION</ThemedText>
+          <ThemedView style={styles.sessionStartInputRow}>
+            <ThemedView style={{ flex: 1 }}>
+              <LabeledInput
+                label="Session Name"
+                value={sessionNameInput}
+                onChangeText={setSessionNameInput}
+                placeholder="e.g. Legs Day, Afternoon Run"
+              />
+            </ThemedView>
+            <Pressable 
+              onPress={startSession} 
+              style={[styles.startSessionButton, { backgroundColor: theme.tint }]}>
+              <ThemedText type="smallBold" style={{ color: '#fff' }}>Start Session</ThemedText>
+            </Pressable>
+          </ThemedView>
         </ThemedView>
-      </ThemedView>
+      )}
+
+      {/* Manual log form (Quick log) */}
+      {!activeSession && (
+        <ThemedView type="backgroundElement" style={styles.quickLogCard}>
+          <ThemedText type="smallBold">QUICK LOG PAST WORKOUT</ThemedText>
+          <LabeledInput
+            label="Workout name"
+            value={name}
+            onChangeText={setName}
+            placeholder="e.g. Push day, 5k run"
+          />
+
+          <ThemedView style={styles.categoryRow}>
+            {CATEGORIES.map((c) => (
+              <Pressable key={c} onPress={() => setCategory(c)}>
+                <ThemedView
+                  type={category === c ? 'backgroundSelected' : 'backgroundElement'}
+                  style={[styles.chip, category === c && { borderColor: theme.tint, borderWidth: 1 }]}>
+                  <ThemedText type="small">{c}</ThemedText>
+                </ThemedView>
+              </Pressable>
+            ))}
+          </ThemedView>
+
+          <ThemedView style={styles.inlineFields}>
+            <ThemedView style={styles.inlineField}>
+              <LabeledInput
+                label="Duration (min)"
+                value={duration}
+                onChangeText={setDuration}
+                keyboardType="number-pad"
+                placeholder="45"
+              />
+            </ThemedView>
+            <ThemedView style={styles.inlineField}>
+              <LabeledInput
+                label="Calories (optional)"
+                value={calories}
+                onChangeText={setCalories}
+                keyboardType="number-pad"
+                placeholder="300"
+              />
+            </ThemedView>
+          </ThemedView>
+
+          <PrimaryButton title="Log Workout (+50 Pts)" onPress={submitQuickLog} loading={submitting} />
+        </ThemedView>
+      )}
 
       {error && (
         <ThemedText type="small" style={styles.error}>
@@ -144,10 +438,8 @@ export default function WorkoutsScreen() {
         </ThemedText>
       )}
 
-      <PrimaryButton title="Log Workout" onPress={submit} loading={submitting} />
-
       <ThemedText type="smallBold" themeColor="textSecondary" style={styles.historyTitle}>
-        HISTORY
+        WORKOUT HISTORY
       </ThemedText>
     </ThemedView>
   );
@@ -158,9 +450,8 @@ export default function WorkoutsScreen() {
         <FlatList
           data={workouts}
           keyExtractor={(w) => w.id}
-          ListHeaderComponent={form}
+          ListHeaderComponent={headerContent}
           contentContainerStyle={styles.listContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           ListEmptyComponent={
             <ThemedView type="backgroundElement" style={styles.emptyCard}>
               <ThemedText themeColor="textSecondary">No workouts logged yet.</ThemedText>
@@ -171,12 +462,12 @@ export default function WorkoutsScreen() {
               <ThemedView style={styles.listRowText}>
                 <ThemedText type="smallBold">{item.name}</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
-                  {item.category} · {item.duration_minutes} min
+                  {item.category.toUpperCase()} · {item.duration_minutes} min
                   {item.calories_burned ? ` · ${item.calories_burned} kcal` : ''} ·{' '}
                   {new Date(item.logged_at).toLocaleDateString()}
                 </ThemedText>
               </ThemedView>
-              <Pressable onPress={() => remove(item)} hitSlop={Spacing.two}>
+              <Pressable onPress={() => removeWorkout(item)} hitSlop={Spacing.two}>
                 <ThemedText type="small" style={styles.delete}>
                   Delete
                 </ThemedText>
@@ -205,9 +496,118 @@ const styles = StyleSheet.create({
     paddingBottom: BottomTabInset + Spacing.four,
     gap: Spacing.two,
   },
-  form: {
+  formContainer: {
     gap: Spacing.three,
     marginBottom: Spacing.two,
+    backgroundColor: 'transparent',
+  },
+  quickLogCard: {
+    padding: Spacing.three,
+    borderRadius: Spacing.three,
+    gap: Spacing.three,
+  },
+  activeSessionCard: {
+    padding: Spacing.three,
+    borderRadius: Spacing.three,
+    gap: Spacing.three,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  activeHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    paddingBottom: Spacing.two,
+  },
+  activeTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
+  pulseDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#EF4444',
+  },
+  timerText: {
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+    fontWeight: 'bold',
+  },
+  sessionNameLabel: {
+    marginBottom: Spacing.one,
+  },
+  activeSessionEmpty: {
+    padding: Spacing.three,
+    alignItems: 'center',
+  },
+  exerciseCard: {
+    padding: Spacing.three,
+    borderRadius: Spacing.two,
+    gap: Spacing.two,
+  },
+  setsList: {
+    gap: Spacing.one,
+    paddingVertical: Spacing.one,
+  },
+  setRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: Spacing.half,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  setInputsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: Spacing.two,
+    marginTop: Spacing.one,
+  },
+  addSetButton: {
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: Spacing.two,
+    paddingHorizontal: Spacing.three,
+  },
+  addExerciseRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: Spacing.two,
+    marginTop: Spacing.two,
+  },
+  addExerciseButton: {
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: Spacing.two,
+    paddingHorizontal: Spacing.four,
+  },
+  finishSection: {
+    marginTop: Spacing.three,
+    paddingTop: Spacing.three,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    gap: Spacing.three,
+  },
+  sessionStartCard: {
+    padding: Spacing.three,
+    borderRadius: Spacing.three,
+    gap: Spacing.two,
+  },
+  sessionStartInputRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: Spacing.two,
+  },
+  startSessionButton: {
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: Spacing.two,
+    paddingHorizontal: Spacing.four,
   },
   categoryRow: {
     flexDirection: 'row',
@@ -227,7 +627,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   historyTitle: {
-    marginTop: Spacing.two,
+    marginTop: Spacing.three,
   },
   emptyCard: {
     borderRadius: Spacing.three,
@@ -246,10 +646,11 @@ const styles = StyleSheet.create({
     gap: Spacing.half,
     flexShrink: 1,
   },
-  error: {
-    color: '#EF4444',
-  },
   delete: {
     color: '#EF4444',
+  },
+  error: {
+    color: '#EF4444',
+    marginTop: Spacing.one,
   },
 });

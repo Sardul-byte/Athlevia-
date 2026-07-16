@@ -84,9 +84,54 @@ export type UserProfile = {
   user_id: string;
   daily_calorie_goal: number;
   daily_water_goal_ml: number;
+  points: number;
+  streak_days: number;
   created_at: string;
   updated_at: string;
 };
+
+export type WorkoutSet = {
+  id: string;
+  session_id: string;
+  exercise_name: string;
+  set_number: number;
+  weight_kg: number | null;
+  reps: number | null;
+  completed: number;
+  logged_at: string;
+};
+
+export type WorkoutSession = {
+  id: string;
+  user_id: string;
+  name: string;
+  status: string;
+  started_at: string;
+  completed_at: string | null;
+  duration_minutes: number;
+  calories_burned: number;
+  sets: WorkoutSet[];
+};
+
+export type Supplement = {
+  id: string;
+  user_id: string;
+  name: string;
+  dosage: string | null;
+  schedule_time: string | null;
+  active: number;
+  created_at: string;
+};
+
+export type SupplementToday = {
+  id: string;
+  name: string;
+  dosage: string | null;
+  schedule_time: string | null;
+  taken: boolean;
+  log_id: string | null;
+};
+
 
 export type BloodReport = {
   id: string;
@@ -151,4 +196,40 @@ export const api = {
     test_date: string;
   }) => request<BloodReport>('/blood-reports', { method: 'POST', body: JSON.stringify(report) }),
   deleteBloodReport: (id: string) => request<void>(`/blood-reports/${id}`, { method: 'DELETE' }),
+
+  getActiveWorkoutSession: () => request<WorkoutSession | null>('/workouts/sessions/active'),
+  startWorkoutSession: (name: string) =>
+    request<WorkoutSession>('/workouts/sessions/start', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    }),
+  addWorkoutSet: (sessionId: string, set: { exercise_name: string; set_number: number; weight_kg?: number; reps?: number }) =>
+    request<WorkoutSet>(`/workouts/sessions/${sessionId}/sets`, {
+      method: 'POST',
+      body: JSON.stringify(set),
+    }),
+  deleteWorkoutSet: (setId: string) => request<void>(`/workouts/sets/${setId}`, { method: 'DELETE' }),
+  finishWorkoutSession: (sessionId: string, finish: { duration_minutes: number; calories_burned: number; category: string }) =>
+    request<WorkoutSession>(`/workouts/sessions/${sessionId}/finish`, {
+      method: 'POST',
+      body: JSON.stringify(finish),
+    }),
+
+  getSupplements: () => request<Supplement[]>('/supplements'),
+  addSupplement: (supplement: { name: string; dosage?: string; schedule_time?: string }) =>
+    request<Supplement>('/supplements', { method: 'POST', body: JSON.stringify(supplement) }),
+  deleteSupplement: (id: string) => request<void>(`/supplements/${id}`, { method: 'DELETE' }),
+  getTodaySupplements: () => request<SupplementToday[]>('/supplements/today'),
+  toggleSupplement: (id: string) => request<SupplementToday>(`/supplements/${id}/toggle`, { method: 'POST' }),
+
+  claimPoints: (amount: number, reason: string) =>
+    request<UserProfile>('/profiles/me/claim-points', {
+      method: 'POST',
+      body: JSON.stringify({ amount, reason }),
+    }),
+  redeemReward: (points: number, reward_id: string) =>
+    request<UserProfile>('/profiles/me/redeem-reward', {
+      method: 'POST',
+      body: JSON.stringify({ points, reward_id }),
+    }),
 };
