@@ -13,6 +13,14 @@ import { readCache, writeCache } from '@/lib/cache';
 
 const CATEGORIES = ['strength', 'cardio', 'swimming', 'sports', 'other'] as const;
 
+const CATEGORY_EMOJIS = {
+  strength: '🏋️‍♂️',
+  cardio: '🏃‍♂️',
+  swimming: '🏊‍♂️',
+  sports: '⚽',
+  other: '👟',
+};
+
 export default function WorkoutsScreen() {
   const theme = useTheme();
   const [workouts, setWorkouts] = useState<Workout[]>([]);
@@ -464,23 +472,26 @@ export default function WorkoutsScreen() {
               <ThemedText themeColor="textSecondary">No workouts logged yet.</ThemedText>
             </ThemedView>
           }
-          renderItem={({ item }) => (
-            <ThemedView type="backgroundElement" style={styles.listRow}>
-              <ThemedView style={styles.listRowText}>
-                <ThemedText type="smallBold">{item.name}</ThemedText>
-                <ThemedText type="small" themeColor="textSecondary">
-                  {item.category.toUpperCase()} · {item.duration_minutes} min
-                  {item.calories_burned ? ` · ${item.calories_burned} kcal` : ''} ·{' '}
-                  {new Date(item.logged_at).toLocaleDateString()}
-                </ThemedText>
+          renderItem={({ item }) => {
+            const emoji = CATEGORY_EMOJIS[item.category as keyof typeof CATEGORY_EMOJIS] || '💪';
+            return (
+              <ThemedView type="backgroundElement" style={styles.listRow}>
+                <ThemedView style={styles.listRowText}>
+                  <ThemedText type="smallBold">{emoji} {item.name}</ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {item.category.toUpperCase()} · {item.duration_minutes} min
+                    {item.calories_burned ? ` · ${item.calories_burned} kcal` : ''} ·{' '}
+                    {new Date(item.logged_at).toLocaleDateString()}
+                  </ThemedText>
+                </ThemedView>
+                <Pressable onPress={() => removeWorkout(item)} hitSlop={Spacing.two}>
+                  <ThemedText type="small" style={styles.delete}>
+                    Delete
+                  </ThemedText>
+                </Pressable>
               </ThemedView>
-              <Pressable onPress={() => removeWorkout(item)} hitSlop={Spacing.two}>
-                <ThemedText type="small" style={styles.delete}>
-                  Delete
-                </ThemedText>
-              </Pressable>
-            </ThemedView>
-          )}
+            );
+          }}
         />
       </SafeAreaView>
     </ThemedView>

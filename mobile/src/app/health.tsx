@@ -740,15 +740,19 @@ export default function HealthScreen() {
               <ThemedText themeColor="textSecondary">No meals or water logged yet.</ThemedText>
             </ThemedView>
           ) : (
-            nutrition.slice(0, 8).map((n) => (
-              <ThemedView key={n.id} type="backgroundElement" style={styles.listRow}>
-                <ThemedText type="smallBold">{n.food_name}</ThemedText>
-                <ThemedText type="small" themeColor="textSecondary">
-                  {n.water_ml > 0 ? `${n.water_ml} ml` : `${n.calories} kcal`} ·{' '}
-                  {new Date(n.logged_at).toLocaleDateString()}
-                </ThemedText>
-              </ThemedView>
-            ))
+            nutrition.slice(0, 8).map((n) => {
+              const isWater = n.water_ml > 0 || n.food_name.toLowerCase() === 'water';
+              const emoji = isWater ? '💧' : '🍲';
+              return (
+                <ThemedView key={n.id} type="backgroundElement" style={styles.listRow}>
+                  <ThemedText type="smallBold">{emoji} {n.food_name}</ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {n.water_ml > 0 ? `${n.water_ml} ml` : `${n.calories} kcal`} ·{' '}
+                    {new Date(n.logged_at).toLocaleDateString()}
+                  </ThemedText>
+                </ThemedView>
+              );
+            })
           )}
         </ScrollView>
       </SafeAreaView>

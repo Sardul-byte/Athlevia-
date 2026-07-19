@@ -37,6 +37,14 @@ const SHOP_ITEMS = [
   },
 ];
 
+const CATEGORY_EMOJIS = {
+  strength: '🏋️‍♂️',
+  cardio: '🏃‍♂️',
+  swimming: '🏊‍♂️',
+  sports: '⚽',
+  other: '👟',
+};
+
 function isToday(iso: string) {
   const date = new Date(iso);
   const now = new Date();
@@ -415,20 +423,23 @@ export default function HomeScreen() {
               </ThemedText>
             </ThemedView>
           ) : (
-            workouts.slice(0, 5).map((w) => (
-              <ThemedView key={w.id} type="backgroundElement" style={styles.listRow}>
-                <ThemedView style={styles.listRowText}>
-                  <ThemedText type="smallBold">{w.name}</ThemedText>
+            workouts.slice(0, 5).map((w) => {
+              const emoji = CATEGORY_EMOJIS[w.category as keyof typeof CATEGORY_EMOJIS] || '💪';
+              return (
+                <ThemedView key={w.id} type="backgroundElement" style={styles.listRow}>
+                  <ThemedView style={styles.listRowText}>
+                    <ThemedText type="smallBold">{emoji} {w.name}</ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary">
+                      {w.category.toUpperCase()} · {w.duration_minutes} min
+                      {w.calories_burned ? ` · ${w.calories_burned} kcal` : ''}
+                    </ThemedText>
+                  </ThemedView>
                   <ThemedText type="small" themeColor="textSecondary">
-                    {w.category.toUpperCase()} · {w.duration_minutes} min
-                    {w.calories_burned ? ` · ${w.calories_burned} kcal` : ''}
+                    {new Date(w.logged_at).toLocaleDateString()}
                   </ThemedText>
                 </ThemedView>
-                <ThemedText type="small" themeColor="textSecondary">
-                  {new Date(w.logged_at).toLocaleDateString()}
-                </ThemedText>
-              </ThemedView>
-            ))
+              );
+            })
           )}
         </ScrollView>
       </SafeAreaView>
