@@ -30,15 +30,19 @@ function isToday(iso: string) {
 }
 
 function StatCard({ label, value, unit }: { label: string; value: number; unit: string }) {
+  const theme = useTheme();
   return (
-    <ThemedView type="backgroundElement" style={styles.statCard}>
-      <ThemedText type="subtitle" themeColor="tint">
+    <ThemedView
+      type="backgroundElement"
+      style={[styles.statCard, { borderColor: theme.backgroundSelected }]}
+    >
+      <ThemedText type="subtitle" themeColor="tint" style={styles.statValue}>
         {value}
       </ThemedText>
-      <ThemedText type="small" themeColor="textSecondary">
+      <ThemedText type="small" themeColor="textSecondary" style={styles.statUnit}>
         {unit}
       </ThemedText>
-      <ThemedText type="smallBold">{label}</ThemedText>
+      <ThemedText type="smallBold" style={styles.statLabel}>{label}</ThemedText>
     </ThemedView>
   );
 }
@@ -167,20 +171,27 @@ export default function HomeScreen() {
           contentContainerStyle={styles.scrollContent}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
           <ThemedView style={styles.header}>
-            <ThemedView>
-              <ThemedText type="subtitle">Today</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
+            <ThemedView style={{ backgroundColor: 'transparent' }}>
+              <ThemedText type="subtitle" style={styles.welcomeText}>Dashboard</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary" style={styles.emailText}>
                 {user?.email}
               </ThemedText>
             </ThemedView>
             <ThemedView style={styles.headerActions}>
+              {profile && (
+                <ThemedView type="backgroundSelected" style={styles.headerBadge}>
+                  <ThemedText type="smallBold" themeColor="tint">
+                    ✨ {profile.points} Pts
+                  </ThemedText>
+                </ThemedView>
+              )}
               <Pressable onPress={() => setIsEditingGoals(!isEditingGoals)} style={styles.editGoalsButton}>
-                <ThemedText type="link" themeColor="tint">
-                  {isEditingGoals ? 'Close Goals' : 'Edit Goals'}
+                <ThemedText type="link" themeColor="tint" style={styles.headerLinkText}>
+                  {isEditingGoals ? 'Close Goals' : 'Goals'}
                 </ThemedText>
               </Pressable>
-              <Pressable onPress={signOut}>
-                <ThemedText type="link" themeColor="tint">
+              <Pressable onPress={signOut} style={styles.signoutBtn}>
+                <ThemedText type="link" themeColor="textSecondary" style={styles.headerLinkText}>
                   Sign out
                 </ThemedText>
               </Pressable>
@@ -188,8 +199,8 @@ export default function HomeScreen() {
           </ThemedView>
 
           {isEditingGoals && (
-            <ThemedView type="backgroundElement" style={styles.goalsForm}>
-              <ThemedText type="smallBold">UPDATE DAILY GOALS</ThemedText>
+            <ThemedView type="backgroundElement" style={[styles.goalsForm, { borderColor: theme.backgroundSelected }]}>
+              <ThemedText type="smallBold" style={{ fontSize: 12, letterSpacing: 0.5 }}>UPDATE DAILY GOALS</ThemedText>
               <ThemedView style={styles.inlineFields}>
                 <ThemedView style={styles.inlineField}>
                   <LabeledInput
@@ -224,8 +235,8 @@ export default function HomeScreen() {
           </ThemedView>
 
           {profile && (
-            <ThemedView type="backgroundElement" style={styles.goalsProgressCard}>
-              <ThemedText type="smallBold" themeColor="textSecondary">
+            <ThemedView type="backgroundElement" style={[styles.goalsProgressCard, { borderColor: theme.backgroundSelected }]}>
+              <ThemedText type="smallBold" themeColor="textSecondary" style={{ fontSize: 11, letterSpacing: 0.5 }}>
                 TODAY'S GOAL PROGRESS
               </ThemedText>
 
@@ -273,18 +284,26 @@ export default function HomeScreen() {
 
           {/* Gamified Points Status */}
           {profile && (
-            <ThemedView type="backgroundElement" style={styles.pointsCard}>
+            <ThemedView type="backgroundElement" style={[styles.pointsCard, { borderColor: theme.backgroundSelected }]}>
               <ThemedView style={styles.pointsHeader}>
-                <ThemedText type="smallBold" themeColor="textSecondary">
+                <ThemedText type="smallBold" themeColor="textSecondary" style={{ fontSize: 11, letterSpacing: 0.5 }}>
                   GAMIFIED REWARDS
                 </ThemedText>
-                <ThemedText type="subtitle" themeColor="tint">
-                  {profile.points} Points · {profile.streak_days || 1} Day Streak 🔥
+                <ThemedText type="smallBold" themeColor="tint" style={{ fontSize: 14 }}>
+                  🔥 {profile.streak_days || 1} Day Streak
                 </ThemedText>
               </ThemedView>
-              <ThemedText type="small" themeColor="textSecondary">
-                Log activities to collect points: Workouts (+50 Pts), Active Sessions (+100 Pts), Vitals (+20 Pts), Meals (+15 Pts), Hydration (+5 Pts), Supplements (+10 Pts).
-              </ThemedText>
+              <ThemedView style={styles.pointsBodyRow}>
+                <ThemedText type="title" themeColor="tint" style={styles.pointsHighlight}>
+                  {profile.points}
+                </ThemedText>
+                <ThemedView style={styles.pointsBodyTextCol}>
+                  <ThemedText type="smallBold" themeColor="text">Total Points Accumulated</ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary" style={{ fontSize: 11 }}>
+                    Earn points: Workouts (+50), Active (+100), Vitals (+20), Meals (+15), Hydration (+5), Supplements (+10).
+                  </ThemedText>
+                </ThemedView>
+              </ThemedView>
             </ThemedView>
           )}
 
@@ -400,18 +419,42 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: Spacing.one,
+  },
+  welcomeText: {
+    fontSize: 24,
+    lineHeight: 30,
+    fontWeight: 'bold',
+  },
+  emailText: {
+    fontSize: 12,
+    opacity: 0.8,
   },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
   },
+  headerBadge: {
+    paddingHorizontal: Spacing.two + 2,
+    paddingVertical: 5,
+    borderRadius: 12,
+    marginRight: Spacing.two,
+  },
   editGoalsButton: {
-    marginRight: Spacing.four,
+    marginRight: Spacing.three,
+  },
+  signoutBtn: {
+    marginLeft: Spacing.one,
+  },
+  headerLinkText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   goalsForm: {
-    borderRadius: Spacing.three,
+    borderRadius: 14,
     padding: Spacing.three,
     gap: Spacing.three,
+    borderWidth: 1,
   },
   inlineFields: {
     flexDirection: 'row',
@@ -427,20 +470,39 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flexGrow: 1,
-    flexBasis: '30%',
-    borderRadius: Spacing.three,
-    padding: Spacing.three,
-    gap: Spacing.half,
+    flexBasis: '28%',
+    borderRadius: 14,
+    padding: Spacing.three - 2,
+    gap: 2,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statValue: {
+    fontSize: 22,
+    lineHeight: 26,
+    fontWeight: 'bold',
+  },
+  statUnit: {
+    fontSize: 10,
+    lineHeight: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  statLabel: {
+    fontSize: 11,
+    marginTop: 4,
+    fontWeight: '700',
   },
   sectionTitle: {
     marginTop: Spacing.two,
   },
   emptyCard: {
-    borderRadius: Spacing.three,
+    borderRadius: 14,
     padding: Spacing.four,
   },
   listRow: {
-    borderRadius: Spacing.three,
+    borderRadius: 14,
     padding: Spacing.three,
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -453,9 +515,10 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   goalsProgressCard: {
-    borderRadius: Spacing.three,
+    borderRadius: 14,
     padding: Spacing.three,
     gap: Spacing.three,
+    borderWidth: 1,
   },
   goalRow: {
     gap: Spacing.one,
@@ -468,19 +531,43 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   progressBarBg: {
-    height: 8,
-    borderRadius: 4,
+    height: 10,
+    borderRadius: 5,
     overflow: 'hidden',
   },
   progressBarFill: {
     height: '100%',
-    borderRadius: 4,
+    borderRadius: 5,
   },
   // Gamification & Shop Styles
   pointsCard: {
-    borderRadius: Spacing.three,
+    borderRadius: 14,
     padding: Spacing.three,
     gap: Spacing.two,
+    borderWidth: 1,
+  },
+  pointsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+  },
+  pointsBodyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    backgroundColor: 'transparent',
+    marginTop: 4,
+  },
+  pointsHighlight: {
+    fontSize: 36,
+    lineHeight: 40,
+    fontWeight: '900',
+  },
+  pointsBodyTextCol: {
+    flex: 1,
+    backgroundColor: 'transparent',
+    gap: 2,
   },
   pointsHeader: {
     flexDirection: 'row',
