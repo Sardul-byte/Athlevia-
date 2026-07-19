@@ -248,20 +248,19 @@ export default function WorkoutsScreen() {
   const headerContent = (
     <ThemedView style={styles.formContainer}>
       <ThemedText type="subtitle">Fitness Workouts</ThemedText>
-
       {/* Active Workout Session Section */}
       {activeSession ? (
-        <ThemedView type="backgroundElement" style={styles.activeSessionCard}>
+        <ThemedView type="backgroundElement" style={[styles.activeSessionCard, { borderColor: theme.backgroundSelected }]}>
           <ThemedView style={styles.activeHeader}>
             <ThemedView style={styles.activeTitleRow}>
               <ThemedView style={styles.pulseDot} />
-              <ThemedText type="smallBold" themeColor="tint">ACTIVE WORKOUT</ThemedText>
+              <ThemedText type="smallBold" themeColor="tint" style={{ letterSpacing: 0.5 }}>ACTIVE WORKOUT</ThemedText>
             </ThemedView>
             <ThemedText type="subtitle" style={styles.timerText}>{elapsedTime}</ThemedText>
           </ThemedView>
           
           <ThemedText type="smallBold" style={styles.sessionNameLabel}>
-            Name: {activeSession.name}
+            Session: {activeSession.name}
           </ThemedText>
 
           {/* Exercise Log list */}
@@ -273,19 +272,27 @@ export default function WorkoutsScreen() {
             </ThemedView>
           ) : (
             exerciseNames.map((exName) => (
-              <ThemedView key={exName} type="backgroundSelected" style={styles.exerciseCard}>
-                <ThemedText type="smallBold" themeColor="tint">{exName}</ThemedText>
+              <ThemedView key={exName} type="backgroundSelected" style={[styles.exerciseCard, { borderColor: theme.backgroundSelected }]}>
+                <ThemedText type="smallBold" themeColor="tint" style={{ fontSize: 15, textTransform: 'uppercase' }}>{exName}</ThemedText>
                 
-                {/* Sets listed */}
+                {/* Sets listed in a clean table format */}
                 {groupedSets[exName].length > 0 && (
-                  <ThemedView style={styles.setsList}>
+                  <ThemedView style={styles.setsTable}>
+                    <ThemedView style={styles.tableHeader}>
+                      <ThemedText type="smallBold" themeColor="textSecondary" style={styles.colHeader}>SET</ThemedText>
+                      <ThemedText type="smallBold" themeColor="textSecondary" style={[styles.colHeader, { flex: 2 }]}>WEIGHT</ThemedText>
+                      <ThemedText type="smallBold" themeColor="textSecondary" style={[styles.colHeader, { flex: 2 }]}>REPS</ThemedText>
+                      <ThemedText type="smallBold" themeColor="textSecondary" style={[styles.colHeader, { textAlign: 'right' }]}>ACTION</ThemedText>
+                    </ThemedView>
                     {groupedSets[exName].map((s) => (
-                      <ThemedView key={s.id} style={styles.setRow}>
-                        <ThemedText type="small">
-                          Set {s.set_number}: {s.reps} reps {s.weight_kg ? `· ${s.weight_kg} kg` : ''}
-                        </ThemedText>
-                        <Pressable onPress={() => deleteSet(s.id)}>
-                          <ThemedText type="small" style={{ color: '#EF4444' }}>Remove</ThemedText>
+                      <ThemedView key={s.id} style={styles.setTableRow}>
+                        <ThemedView style={styles.setNumBadge}>
+                          <ThemedText type="smallBold" style={styles.setNumText}>{s.set_number}</ThemedText>
+                        </ThemedView>
+                        <ThemedText type="small" style={{ flex: 2 }}>{s.weight_kg ? `${s.weight_kg} kg` : '—'}</ThemedText>
+                        <ThemedText type="small" style={{ flex: 2 }}>{s.reps} reps</ThemedText>
+                        <Pressable onPress={() => deleteSet(s.id)} style={styles.removeSetBtn}>
+                          <ThemedText type="smallBold" style={{ color: '#EF4444', fontSize: 12 }}>Remove</ThemedText>
                         </Pressable>
                       </ThemedView>
                     ))}
@@ -364,8 +371,8 @@ export default function WorkoutsScreen() {
           </ThemedView>
         </ThemedView>
       ) : (
-        <ThemedView type="backgroundElement" style={styles.sessionStartCard}>
-          <ThemedText type="smallBold">START WORKOUT SESSION</ThemedText>
+        <ThemedView type="backgroundElement" style={[styles.sessionStartCard, { borderColor: theme.backgroundSelected }]}>
+          <ThemedText type="smallBold" style={{ fontSize: 12, letterSpacing: 0.5 }}>START WORKOUT SESSION</ThemedText>
           <ThemedView style={styles.sessionStartInputRow}>
             <ThemedView style={{ flex: 1 }}>
               <LabeledInput
@@ -503,22 +510,21 @@ const styles = StyleSheet.create({
   },
   quickLogCard: {
     padding: Spacing.three,
-    borderRadius: Spacing.three,
+    borderRadius: 14,
     gap: Spacing.three,
   },
   activeSessionCard: {
     padding: Spacing.three,
-    borderRadius: Spacing.three,
+    borderRadius: 14,
     gap: Spacing.three,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   activeHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
     paddingBottom: Spacing.two,
   },
   activeTitleRow: {
@@ -527,17 +533,20 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   pulseDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     backgroundColor: '#EF4444',
   },
   timerText: {
     fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
     fontWeight: 'bold',
+    fontSize: 20,
+    letterSpacing: 1,
   },
   sessionNameLabel: {
     marginBottom: Spacing.one,
+    fontSize: 15,
   },
   activeSessionEmpty: {
     padding: Spacing.three,
@@ -545,19 +554,55 @@ const styles = StyleSheet.create({
   },
   exerciseCard: {
     padding: Spacing.three,
-    borderRadius: Spacing.two,
+    borderRadius: 12,
     gap: Spacing.two,
+    borderWidth: 1,
+    marginTop: Spacing.two,
   },
-  setsList: {
-    gap: Spacing.one,
+  setsTable: {
+    gap: 4,
     paddingVertical: Spacing.one,
+    backgroundColor: 'transparent',
   },
-  setRow: {
+  tableHeader: {
+    flexDirection: 'row',
+    paddingBottom: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+  },
+  colHeader: {
+    fontSize: 10,
+    fontWeight: '700',
+    flex: 1,
+    letterSpacing: 0.5,
+  },
+  setTableRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: Spacing.half,
+    alignItems: 'center',
+    paddingVertical: Spacing.one,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: 'transparent',
+  },
+  setNumBadge: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 6,
+  },
+  setNumText: {
+    fontSize: 11,
+  },
+  removeSetBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    backgroundColor: 'transparent',
   },
   setInputsRow: {
     flexDirection: 'row',
@@ -566,11 +611,12 @@ const styles = StyleSheet.create({
     marginTop: Spacing.one,
   },
   addSetButton: {
-    height: 48,
+    height: 42,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: Spacing.two,
-    paddingHorizontal: Spacing.three,
+    borderRadius: 10,
+    paddingHorizontal: Spacing.four,
+    marginBottom: 2,
   },
   addExerciseRow: {
     flexDirection: 'row',
@@ -579,11 +625,12 @@ const styles = StyleSheet.create({
     marginTop: Spacing.two,
   },
   addExerciseButton: {
-    height: 48,
+    height: 42,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: Spacing.two,
+    borderRadius: 10,
     paddingHorizontal: Spacing.four,
+    marginBottom: 2,
   },
   finishSection: {
     marginTop: Spacing.three,
@@ -594,8 +641,9 @@ const styles = StyleSheet.create({
   },
   sessionStartCard: {
     padding: Spacing.three,
-    borderRadius: Spacing.three,
+    borderRadius: 14,
     gap: Spacing.two,
+    borderWidth: 1,
   },
   sessionStartInputRow: {
     flexDirection: 'row',
@@ -603,11 +651,12 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   startSessionButton: {
-    height: 48,
+    height: 42,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: Spacing.two,
+    borderRadius: 10,
     paddingHorizontal: Spacing.four,
+    marginBottom: 2,
   },
   categoryRow: {
     flexDirection: 'row',
@@ -630,11 +679,11 @@ const styles = StyleSheet.create({
     marginTop: Spacing.three,
   },
   emptyCard: {
-    borderRadius: Spacing.three,
+    borderRadius: 14,
     padding: Spacing.four,
   },
   listRow: {
-    borderRadius: Spacing.three,
+    borderRadius: 14,
     padding: Spacing.three,
     flexDirection: 'row',
     justifyContent: 'space-between',
