@@ -617,12 +617,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     gap: 2,
   },
-  pointsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-  },
   shopCard: {
     borderRadius: 14,
     padding: Spacing.three,

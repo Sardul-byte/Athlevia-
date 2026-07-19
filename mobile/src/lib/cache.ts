@@ -2,7 +2,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const PREFIX = 'atlevia:cache:';
 
-export type CacheKey = 'workouts' | 'nutrition' | 'vitals' | 'profile' | 'blood_reports';
+export type CacheKey =
+  | 'workouts'
+  | 'nutrition'
+  | 'vitals'
+  | 'profile'
+  | 'blood_reports'
+  | 'unlocked_themes'
+  | 'selected_theme'
+  | 'active_session'
+  | 'supplements_today';
 
 export async function readCache<T>(key: CacheKey): Promise<T | null> {
   try {
