@@ -14,9 +14,27 @@ import { readCache, writeCache } from '@/lib/cache';
 import { useCustomTheme, type ThemeName } from '@/lib/theme-context';
 
 const SHOP_ITEMS = [
-  { id: 'cyberpunk', name: 'Cyberpunk Neon 💜', cost: 100, description: 'Vibrant neon purple background with pink accents' },
-  { id: 'emerald', name: 'Emerald Forest 💚', cost: 150, description: 'Classy dark emerald green styling' },
-  { id: 'rosegold', name: 'Rose Gold 🍑', cost: 200, description: 'Warm dark maroon and peach palette' },
+  { 
+    id: 'cyberpunk', 
+    name: 'Cyberpunk Neon 💜', 
+    cost: 100, 
+    description: 'Vibrant neon purple background with pink accents',
+    colors: { bg: '#1A002C', tint: '#FF007F' } 
+  },
+  { 
+    id: 'emerald', 
+    name: 'Emerald Forest 💚', 
+    cost: 150, 
+    description: 'Classy dark emerald green styling',
+    colors: { bg: '#022C22', tint: '#10B981' } 
+  },
+  { 
+    id: 'rosegold', 
+    name: 'Rose Gold 🍑', 
+    cost: 200, 
+    description: 'Warm dark maroon and peach palette',
+    colors: { bg: '#2D1B1B', tint: '#FCA5A5' } 
+  },
 ];
 
 function isToday(iso: string) {
@@ -311,7 +329,7 @@ export default function HomeScreen() {
           <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionTitle}>
             REDEEM PERKS & THEMES SHOP
           </ThemedText>
-          <ThemedView type="backgroundElement" style={styles.shopCard}>
+          <ThemedView type="backgroundElement" style={[styles.shopCard, { borderColor: theme.backgroundSelected }]}>
             {SHOP_ITEMS.map((item) => {
               const isUnlocked = unlockedThemes.includes(item.id);
               const isApplied = themeName === item.id;
@@ -319,7 +337,14 @@ export default function HomeScreen() {
 
               return (
                 <ThemedView key={item.id} style={styles.shopItemRow}>
-                  <ThemedView style={{ backgroundColor: 'transparent', flex: 1, gap: 2 }}>
+                  {/* Overlapping theme visual previews */}
+                  <ThemedView style={styles.themePreviewWrap}>
+                    <ThemedView style={[styles.colorBubbleBg, { backgroundColor: item.colors.bg }]}>
+                      <ThemedView style={[styles.colorBubbleTint, { backgroundColor: item.colors.tint }]} />
+                    </ThemedView>
+                  </ThemedView>
+
+                  <ThemedView style={{ backgroundColor: 'transparent', flex: 1, gap: 2, marginLeft: Spacing.two }}>
                     <ThemedText type="smallBold">{item.name}</ThemedText>
                     <ThemedText type="small" themeColor="textSecondary" style={{ fontSize: 11 }}>
                       {item.description}
@@ -343,7 +368,7 @@ export default function HomeScreen() {
                       disabled={!canAfford}
                       style={[
                         styles.shopButton,
-                        { backgroundColor: canAfford ? '#10B981' : 'rgba(255,255,255,0.06)' }
+                        { backgroundColor: canAfford ? '#10B981' : theme.backgroundSelected }
                       ]}>
                       <ThemedText type="smallBold" style={{ color: canAfford ? '#fff' : theme.textSecondary, fontSize: 12 }}>
                         Redeem {item.cost}
@@ -358,11 +383,23 @@ export default function HomeScreen() {
             <ThemedView style={styles.standardThemesRow}>
               <ThemedText type="smallBold" themeColor="textSecondary">Default Themes:</ThemedText>
               <ThemedView style={styles.standardThemesButtons}>
-                <Pressable onPress={() => applyTheme('dark')} style={[styles.standardThemeBtn, themeName === 'dark' && { borderColor: theme.tint, borderWidth: 1 }]}>
-                  <ThemedText type="small">Dark</ThemedText>
+                <Pressable 
+                  onPress={() => applyTheme('dark')} 
+                  style={[
+                    styles.standardThemeBtn, 
+                    { borderColor: themeName === 'dark' ? theme.tint : theme.backgroundSelected }
+                  ]}>
+                  <ThemedView style={[styles.colorDot, { backgroundColor: '#000000', borderColor: '#2DD4BF', borderWidth: 1 }]} />
+                  <ThemedText type="small" style={{ fontWeight: themeName === 'dark' ? 'bold' : '500' }}>Dark</ThemedText>
                 </Pressable>
-                <Pressable onPress={() => applyTheme('light')} style={[styles.standardThemeBtn, themeName === 'light' && { borderColor: theme.tint, borderWidth: 1 }]}>
-                  <ThemedText type="small">Light</ThemedText>
+                <Pressable 
+                  onPress={() => applyTheme('light')} 
+                  style={[
+                    styles.standardThemeBtn, 
+                    { borderColor: themeName === 'light' ? theme.tint : theme.backgroundSelected }
+                  ]}>
+                  <ThemedView style={[styles.colorDot, { backgroundColor: '#ffffff', borderColor: '#0D9488', borderWidth: 1 }]} />
+                  <ThemedText type="small" style={{ fontWeight: themeName === 'light' ? 'bold' : '500' }}>Light</ThemedText>
                 </Pressable>
               </ThemedView>
             </ThemedView>
@@ -576,9 +613,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   shopCard: {
-    borderRadius: Spacing.three,
+    borderRadius: 14,
     padding: Spacing.three,
     gap: Spacing.three,
+    borderWidth: 1,
   },
   shopItemRow: {
     flexDirection: 'row',
@@ -589,12 +627,31 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.two,
     backgroundColor: 'transparent',
   },
+  themePreviewWrap: {
+    marginRight: Spacing.one,
+    backgroundColor: 'transparent',
+  },
+  colorBubbleBg: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  colorBubbleTint: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+  },
   shopButton: {
     paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-    borderRadius: Spacing.two,
+    paddingVertical: Spacing.two - 2,
+    borderRadius: 8,
     minWidth: 90,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   standardThemesRow: {
     flexDirection: 'row',
@@ -609,9 +666,18 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   standardThemeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
     paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.one,
-    borderRadius: Spacing.four,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    paddingVertical: Spacing.two - 2,
+    borderRadius: 12,
+    borderWidth: 1,
+    backgroundColor: 'rgba(255,255,255,0.02)',
+  },
+  colorDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
 });
