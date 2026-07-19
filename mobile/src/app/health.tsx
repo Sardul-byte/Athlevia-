@@ -461,17 +461,17 @@ export default function HealthScreen() {
                         {item.taken && <ThemedText style={{ color: '#fff', fontSize: 10, fontWeight: 'bold' }}>✓</ThemedText>}
                       </ThemedView>
                       <ThemedView style={{ backgroundColor: 'transparent' }}>
-                        <ThemedText type="smallBold" style={[item.taken && { textDecorationLine: 'line-through', opacity: 0.6 }]}>
+                        <ThemedText type="smallBold" style={[item.taken && { textDecorationLine: 'line-through', opacity: 0.5 }]}>
                           {item.name}
                         </ThemedText>
                         {(item.dosage || item.schedule_time) && (
-                          <ThemedText type="small" themeColor="textSecondary">
+                          <ThemedText type="small" themeColor="textSecondary" style={{ fontSize: 12 }}>
                             {item.dosage} {item.schedule_time ? `· ${item.schedule_time}` : ''}
                           </ThemedText>
                         )}
                       </ThemedView>
                     </ThemedView>
-                    <ThemedText type="small" themeColor="tint">{item.taken ? 'Taken' : 'Log'}</ThemedText>
+                    <ThemedText type="smallBold" themeColor="tint" style={{ fontSize: 13 }}>{item.taken ? 'Taken ✓' : 'Log'}</ThemedText>
                   </Pressable>
                 ))}
               </ThemedView>
@@ -641,6 +641,13 @@ export default function HealthScreen() {
                 </ThemedText>
               ) : (
                 <ThemedView style={styles.chartContainer}>
+                  {/* Grid Lines Background */}
+                  <ThemedView style={styles.chartGridLines}>
+                    <ThemedView style={[styles.gridLine, { borderColor: theme.backgroundSelected }]} />
+                    <ThemedView style={[styles.gridLine, { borderColor: theme.backgroundSelected }]} />
+                    <ThemedView style={[styles.gridLine, { borderColor: theme.backgroundSelected }]} />
+                  </ThemedView>
+
                   <ThemedView style={styles.chartYAxis}>
                     <ThemedText type="small" themeColor="textSecondary" style={{ fontSize: 9 }}>Max: {maxVal.toFixed(0)}</ThemedText>
                     <ThemedText type="small" themeColor="textSecondary" style={{ fontSize: 9 }}>Ref: {BIOMARKERS_INFO[selectedBiomarker].ref}</ThemedText>
@@ -689,43 +696,28 @@ export default function HealthScreen() {
                   </ThemedView>
                   <ThemedView style={styles.biomarkerGrid}>
                     {r.vitamin_d !== null && (
-                      <ThemedView style={styles.biomarkerBadge}>
-                        <ThemedText type="small">Vit D: {r.vitamin_d} ng/mL</ThemedText>
-                        <ThemedText type="smallBold" style={{ color: getBiomarkerStatus('vitamin_d', Number(r.vitamin_d)).color }}>
-                          {' '}({getBiomarkerStatus('vitamin_d', Number(r.vitamin_d)).status})
-                        </ThemedText>
+                      <ThemedView style={[styles.biomarkerBadge, { backgroundColor: getBiomarkerStatus('vitamin_d', Number(r.vitamin_d)).color + '15', borderColor: getBiomarkerStatus('vitamin_d', Number(r.vitamin_d)).color }]}>
+                        <ThemedText type="small" style={{ color: theme.text }}>Vit D: <ThemedText type="smallBold" style={{ color: getBiomarkerStatus('vitamin_d', Number(r.vitamin_d)).color }}>{r.vitamin_d}</ThemedText> {BIOMARKERS_INFO.vitamin_d.unit}</ThemedText>
                       </ThemedView>
                     )}
                     {r.vitamin_b12 !== null && (
-                      <ThemedView style={styles.biomarkerBadge}>
-                        <ThemedText type="small">Vit B12: {r.vitamin_b12} pg/mL</ThemedText>
-                        <ThemedText type="smallBold" style={{ color: getBiomarkerStatus('vitamin_b12', Number(r.vitamin_b12)).color }}>
-                          {' '}({getBiomarkerStatus('vitamin_b12', Number(r.vitamin_b12)).status})
-                        </ThemedText>
+                      <ThemedView style={[styles.biomarkerBadge, { backgroundColor: getBiomarkerStatus('vitamin_b12', Number(r.vitamin_b12)).color + '15', borderColor: getBiomarkerStatus('vitamin_b12', Number(r.vitamin_b12)).color }]}>
+                        <ThemedText type="small" style={{ color: theme.text }}>Vit B12: <ThemedText type="smallBold" style={{ color: getBiomarkerStatus('vitamin_b12', Number(r.vitamin_b12)).color }}>{r.vitamin_b12}</ThemedText> {BIOMARKERS_INFO.vitamin_b12.unit}</ThemedText>
                       </ThemedView>
                     )}
                     {r.cholesterol_ldl !== null && (
-                      <ThemedView style={styles.biomarkerBadge}>
-                        <ThemedText type="small">LDL: {r.cholesterol_ldl} mg/dL</ThemedText>
-                        <ThemedText type="smallBold" style={{ color: getBiomarkerStatus('cholesterol_ldl', Number(r.cholesterol_ldl)).color }}>
-                          {' '}({getBiomarkerStatus('cholesterol_ldl', Number(r.cholesterol_ldl)).status})
-                        </ThemedText>
+                      <ThemedView style={[styles.biomarkerBadge, { backgroundColor: getBiomarkerStatus('cholesterol_ldl', Number(r.cholesterol_ldl)).color + '15', borderColor: getBiomarkerStatus('cholesterol_ldl', Number(r.cholesterol_ldl)).color }]}>
+                        <ThemedText type="small" style={{ color: theme.text }}>LDL: <ThemedText type="smallBold" style={{ color: getBiomarkerStatus('cholesterol_ldl', Number(r.cholesterol_ldl)).color }}>{r.cholesterol_ldl}</ThemedText> {BIOMARKERS_INFO.cholesterol_ldl.unit}</ThemedText>
                       </ThemedView>
                     )}
                     {r.cholesterol_hdl !== null && (
-                      <ThemedView style={styles.biomarkerBadge}>
-                        <ThemedText type="small">HDL: {r.cholesterol_hdl} mg/dL</ThemedText>
-                        <ThemedText type="smallBold" style={{ color: getBiomarkerStatus('cholesterol_hdl', Number(r.cholesterol_hdl)).color }}>
-                          {' '}({getBiomarkerStatus('cholesterol_hdl', Number(r.cholesterol_hdl)).status})
-                        </ThemedText>
+                      <ThemedView style={[styles.biomarkerBadge, { backgroundColor: getBiomarkerStatus('cholesterol_hdl', Number(r.cholesterol_hdl)).color + '15', borderColor: getBiomarkerStatus('cholesterol_hdl', Number(r.cholesterol_hdl)).color }]}>
+                        <ThemedText type="small" style={{ color: theme.text }}>HDL: <ThemedText type="smallBold" style={{ color: getBiomarkerStatus('cholesterol_hdl', Number(r.cholesterol_hdl)).color }}>{r.cholesterol_hdl}</ThemedText> {BIOMARKERS_INFO.cholesterol_hdl.unit}</ThemedText>
                       </ThemedView>
                     )}
                     {r.thyroid_tsh !== null && (
-                      <ThemedView style={styles.biomarkerBadge}>
-                        <ThemedText type="small">TSH: {r.thyroid_tsh} uIU/mL</ThemedText>
-                        <ThemedText type="smallBold" style={{ color: getBiomarkerStatus('thyroid_tsh', Number(r.thyroid_tsh)).color }}>
-                          {' '}({getBiomarkerStatus('thyroid_tsh', Number(r.thyroid_tsh)).status})
-                        </ThemedText>
+                      <ThemedView style={[styles.biomarkerBadge, { backgroundColor: getBiomarkerStatus('thyroid_tsh', Number(r.thyroid_tsh)).color + '15', borderColor: getBiomarkerStatus('thyroid_tsh', Number(r.thyroid_tsh)).color }]}>
+                        <ThemedText type="small" style={{ color: theme.text }}>TSH: <ThemedText type="smallBold" style={{ color: getBiomarkerStatus('thyroid_tsh', Number(r.thyroid_tsh)).color }}>{r.thyroid_tsh}</ThemedText> {BIOMARKERS_INFO.thyroid_tsh.unit}</ThemedText>
                       </ThemedView>
                     )}
                   </ThemedView>
@@ -861,10 +853,10 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.one,
   },
   biomarkerBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    paddingHorizontal: Spacing.two,
+    paddingHorizontal: Spacing.two + 2,
     paddingVertical: Spacing.one,
-    borderRadius: Spacing.one,
+    borderRadius: 12,
+    borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -890,10 +882,15 @@ const styles = StyleSheet.create({
   checkbox: {
     width: 22,
     height: 22,
-    borderRadius: 6,
+    borderRadius: 11,
     borderWidth: 2,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
+    elevation: 1,
   },
   manageSuppsBtn: {
     paddingTop: Spacing.two,
@@ -914,9 +911,10 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.two,
   },
   chartCard: {
-    borderRadius: Spacing.three,
+    borderRadius: 14,
     padding: Spacing.three,
     gap: Spacing.two,
+    borderWidth: 1,
   },
   biomarkerSelector: {
     flexDirection: 'row',
@@ -928,15 +926,35 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.one,
     marginRight: Spacing.two,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   chartContainer: {
     flexDirection: 'row',
-    height: 160,
+    height: 170,
     marginTop: Spacing.two,
     backgroundColor: 'rgba(255,255,255,0.03)',
-    borderRadius: Spacing.two,
+    borderRadius: 12,
     padding: Spacing.three,
     alignItems: 'flex-end',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  chartGridLines: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: Spacing.three,
+    bottom: Spacing.three + 10,
+    justifyContent: 'space-between',
+    zIndex: 0,
+    backgroundColor: 'transparent',
+  },
+  gridLine: {
+    height: 1,
+    borderStyle: 'dashed',
+    borderWidth: 0.5,
+    width: '100%',
   },
   chartYAxis: {
     justifyContent: 'space-between',
@@ -945,6 +963,7 @@ const styles = StyleSheet.create({
     borderRightWidth: 1,
     borderRightColor: 'rgba(255,255,255,0.08)',
     backgroundColor: 'transparent',
+    zIndex: 1,
   },
   chartBars: {
     flex: 1,
@@ -954,6 +973,7 @@ const styles = StyleSheet.create({
     height: '100%',
     paddingLeft: Spacing.two,
     backgroundColor: 'transparent',
+    zIndex: 1,
   },
   chartCol: {
     alignItems: 'center',
@@ -961,16 +981,20 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   chartBarFill: {
-    width: 28,
-    borderRadius: Spacing.one,
+    width: 24,
+    borderTopLeftRadius: 6,
+    borderTopRightRadius: 6,
+    borderBottomLeftRadius: 2,
+    borderBottomRightRadius: 2,
     justifyContent: 'flex-start',
     alignItems: 'center',
   },
   chartGlowDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
     backgroundColor: '#ffffff',
     marginTop: 2,
+    opacity: 0.6,
   },
 });
